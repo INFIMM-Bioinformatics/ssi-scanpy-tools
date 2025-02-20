@@ -1,13 +1,9 @@
 import plotly.graph_objects as go
 import pandas as pd
 
-def cluster_sankey_diagram(adata, prefix="leiden"):
+def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
     """
     Creates a Sankey diagram visualizing the transitions of cluster identities across different resolutions.
-
-    This function generates a Sankey diagram that shows how cells move between clusters as the
-    resolution parameter changes. It helps visualize the hierarchical relationship between
-    clustering results at different granularities.
 
     Parameters
     ----------
@@ -16,25 +12,13 @@ def cluster_sankey_diagram(adata, prefix="leiden"):
         Must have cluster annotations in .obs with names formatted as '{prefix}_{resolution}'.
     prefix : str, optional (default: 'leiden')
         The prefix used in the column names for clustering results.
-        For example, if prefix='leiden', it looks for columns like 'leiden_0.1', 'leiden_0.2', etc.
+    return_fig : bool, optional (default: False)
+        If True, returns the figure object instead of displaying it.
 
     Returns
     -------
-    None
-        Displays the Sankey diagram using plotly.
-
-    Notes
-    -----
-    - The function assumes clustering results exist for resolutions from 0.0 to 1.0 in steps of 0.1
-    - The diagram shows cluster transitions between consecutive resolution values
-    - Node colors are set to blue by default
-    - Resolution values are annotated above the diagram
-
-    Examples
-    --------
-    >>> import scanpy as sc
-    >>> adata = sc.read_h5ad('data.h5ad')
-    >>> cluster_sankey_diagram(adata, prefix='leiden')
+    plotly.graph_objects.Figure or None
+        Returns the figure object if return_fig=True, otherwise displays the plot and returns None.
     """
     # Extract the cluster identities for each resolution
     resolutions = [round(x * 0.1, 1) for x in range(11)]
@@ -99,4 +83,7 @@ def cluster_sankey_diagram(adata, prefix="leiden"):
         annotations=annotations,    
     )
 
-    fig.show()
+    if return_fig:
+        return fig
+    else:
+        fig.show()
