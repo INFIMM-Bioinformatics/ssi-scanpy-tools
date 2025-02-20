@@ -2,43 +2,6 @@ import plotly.graph_objects as go
 import pandas as pd
 
 def cluster_sankey_diagram(adata, prefix="leiden"):
-    """
-    Creates a Sankey diagram visualizing cluster identity transitions across different resolutions.
-
-    This function generates an interactive Sankey diagram showing how cluster assignments
-    change across different resolution values in clustering analysis. It's particularly
-    useful for understanding the hierarchical relationships between clusters at different
-    granularity levels.
-
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix containing clustering results at different resolutions
-        in the .obs attribute.
-    prefix : str, optional (default="leiden")
-        The prefix used for the clustering results in adata.obs. For example, if using
-        Leiden clustering, the columns should be named as 'leiden_0.1', 'leiden_0.2', etc.
-
-    Returns
-    -------
-    None
-        Displays the interactive Sankey diagram using plotly.
-
-    Notes
-    -----
-    - The function automatically generates transitions for resolutions from 0.0 to 1.0
-      with steps of 0.1
-    - Requires the clustering results to be stored in adata.obs with the format:
-      {prefix}_{resolution}
-    - The diagram shows cluster labels and includes resolution values as annotations
-      at the top
-
-    Examples
-    --------
-    >>> import scanpy as sc
-    >>> adata = sc.read_h5ad('path/to/data.h5ad')
-    >>> cluster_sankey_diagram(adata, prefix='leiden')
-    """
     # Extract the cluster identities for each resolution
     resolutions = [round(x * 0.1, 1) for x in range(11)]
     cluster_data = {f'{prefix}_{res}': adata.obs[f'{prefix}_{res}'] for res in resolutions}
