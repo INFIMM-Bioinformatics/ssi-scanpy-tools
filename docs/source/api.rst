@@ -1,7 +1,10 @@
-API
-===
+.. _api:
 
-.. autosummary::
-   :toctree: generated
-   :recursive:
+API Documentation
+=================
+
+.. automodule:: scanpytools
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
