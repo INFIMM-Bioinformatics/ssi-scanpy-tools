@@ -2,9 +2,9 @@
 
 # -- Project information
 
-project = 'Lumache'
-copyright = '2021, Graziella'
-author = 'Graziella'
+project = 'scanpytools'
+copyright = '2025, Statens Serum Institut'
+author = 'Tu Hu'
 
 release = '0.1'
 version = '0.1.0'
