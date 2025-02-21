@@ -22,15 +22,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pdoc3
-          # Install package in editable mode with all dependencies
+          # Install build dependencies
+          pip install build pip-tools
+          # Install the package with all optional dependencies
           pip install -e ".[dev,test,doc]"
+          # Install documentation tools
+          pip install pdoc3
 
       - name: Generate documentation
         run: |
           # Make sure Python can find the package
           mkdir -p docs
-          PYTHONPATH=$PWD pdoc --html --output-dir docs scanpytools --force
+          PYTHONPATH=$PWD pdoc --html --output-dir docs scanpytools --force --verbose
           # Move contents from docs/scanpytools to docs/
           mv docs/scanpytools/* docs/
           rmdir docs/scanpytools

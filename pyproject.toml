@@ -14,7 +14,8 @@ dependencies = [
     "numpy",
     "pandas",
     "matplotlib",
-    "seaborn"
+    "seaborn",
+    "plotly"
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -27,8 +28,7 @@ dev = [
 ]
 
 docs = [
-    "sphinx",
-    "sphinx-rtd-theme"
+    "pdoc"
 ]
 
 [tool.setuptools]
