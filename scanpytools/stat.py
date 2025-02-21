@@ -53,3 +53,5 @@ def cluster_distribution(
     
     except Exception as e:
         raise RuntimeError(f"Error calculating cluster distribution: {str(e)}")
+    
+# def ensemble_rank_genes_groups(adata, groupby)
