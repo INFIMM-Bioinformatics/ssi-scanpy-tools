@@ -25,7 +25,7 @@ jobs:
           pip install pdoc3
           pip install -e .
           # Install any additional project dependencies
-          pip install -r requirements.txt
+          # pip install -r requirements.txt
 
       - name: Generate documentation
         run: |
