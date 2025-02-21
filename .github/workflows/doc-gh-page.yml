@@ -10,6 +10,11 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # Add these permissions
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +42,8 @@ jobs:
             echo "Documentation generation failed"
             exit 1
           }
-          # Create .nojekyll file to disable GitHub Pages Jekyll processing
+          mkdir -p docs
+          PYTHONPATH=$PWD pdoc -o docs scanpytools          # Create .nojekyll file to disable GitHub Pages Jekyll processing
           touch docs/.nojekyll
 
       - name: Deploy to GitHub Pages
