@@ -10,7 +10,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    # Add these permissions
     permissions:
       contents: write
       pages: write
@@ -27,23 +26,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install build dependencies
           pip install build pip-tools
-          # Install the package with all optional dependencies
           pip install -e ".[dev,test,doc]"
-          # Install documentation tools
-          pip install pdoc    # Changed from pdoc3 to pdoc
+          pip install pdoc
 
       - name: Generate documentation
         run: |
-          # Make sure Python can find the package
           mkdir -p docs
-          pdoc -o docs scanpytools || {    # Simplified pdoc command
-            echo "Documentation generation failed"
-            exit 1
-          }
-          mkdir -p docs
-          PYTHONPATH=$PWD pdoc -o docs scanpytools          # Create .nojekyll file to disable GitHub Pages Jekyll processing
+          PYTHONPATH=$PWD pdoc -o docs scanpytools
           touch docs/.nojekyll
 
       - name: Deploy to GitHub Pages
