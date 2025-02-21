@@ -27,8 +27,8 @@ dev = [
     "flake8"
 ]
 
-docs = [
-    "pdoc"
+doc = [
+    "pdoc"  # Using pdoc instead of pdoc3
 ]
 
 [tool.setuptools]
