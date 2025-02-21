@@ -23,16 +23,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pdoc3
-          pip install -e .
-          # Install any additional project dependencies
-          # pip install -r requirements.txt
+          # Install package in editable mode with all dependencies
+          pip install -e ".[dev,test,doc]"
 
       - name: Generate documentation
         run: |
-          pdoc --html --output-dir docs ssi_scanpy_tools --force
-          # Move contents from docs/ssi_scanpy_tools to docs/
-          mv docs/ssi_scanpy_tools/* docs/
-          rmdir docs/ssi_scanpy_tools
+          # Make sure Python can find the package
+          mkdir -p docs
+          PYTHONPATH=$PWD pdoc --html --output-dir docs scanpytools --force
+          # Move contents from docs/scanpytools to docs/
+          mv docs/scanpytools/* docs/
+          rmdir docs/scanpytools
           # Create .nojekyll file to disable GitHub Pages Jekyll processing
           touch docs/.nojekyll
 
