@@ -23,11 +23,8 @@
 
             <h2>Contents</h2>
             <ul>
-  <li><a href="#scanpytools">scanpytools</a>
-  <ul>
-    <li><a href="#main-components">Main Components</a></li>
-    <li><a href="#functions">Functions</a></li>
-  </ul></li>
+  <li><a href="#main-components">Main Components:</a></li>
+  <li><a href="#functions">Functions:</a></li>
 </ul>
 
 
@@ -56,29 +53,26 @@
                     <h1 class="modulename">
 scanpytools    </h1>
 
-                        <div class="docstring"><h1 id="scanpytools">scanpytools</h1>
+                        <div class="docstring"><p>scanpytools</p>
 
 <p>A collection of utility functions extending Scanpy functionality for single-cell RNA sequencing analysis.</p>
 
-<h2 id="main-components">Main Components</h2>
+<h2 id="main-components">Main Components:</h2>
 
-<p>tl : Tools
-    Analysis tools including cluster reordering and multi-resolution Leiden clustering
-pl : Plotting
-    Visualization tools including Sankey diagrams for cluster comparison
-stat : Statistics
-    Statistical analysis tools including cluster distribution analysis</p>
+<ul>
+<li>tl: Analysis tools including cluster reordering and multi-resolution Leiden clustering</li>
+<li>pl: Visualization tools including Sankey diagrams for cluster comparison</li>
+<li>stat: Statistical analysis tools including cluster distribution analysis</li>
+</ul>
 
-<h2 id="functions">Functions</h2>
+<h2 id="functions">Functions:</h2>
 
-<p>reorder_clusters
-    Reorder cluster labels based on specific criteria
-leiden_multi_resolution
-    Perform Leiden clustering at multiple resolutions
-cluster_sankey_diagram
-    Create Sankey diagram to visualize cluster relationships
-cluster_distribution
-    Analyze and compute cluster distribution statistics</p>
+<ul>
+<li>reorder_clusters: Reorder cluster labels based on specific criteria</li>
+<li>leiden_multi_resolution: Perform Leiden clustering at multiple resolutions</li>
+<li>cluster_sankey_diagram: Create Sankey diagram to visualize cluster relationships</li>
+<li>cluster_distribution: Analyze and compute cluster distribution statistics</li>
+</ul>
 </div>
 
                         <input id="mod-scanpytools-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
@@ -87,36 +81,28 @@ cluster_distribution
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="sd">&quot;&quot;&quot;</span>
 </span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="sd">scanpytools</span>
-</span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a><span class="sd">===========</span>
-</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a>
-</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">A collection of utility functions extending Scanpy functionality for single-cell RNA sequencing analysis.</span>
-</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a>
-</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">Main Components</span>
-</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a><span class="sd">--------------</span>
-</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="sd">tl : Tools</span>
-</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a><span class="sd">    Analysis tools including cluster reordering and multi-resolution Leiden clustering</span>
-</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a><span class="sd">pl : Plotting</span>
-</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="sd">    Visualization tools including Sankey diagrams for cluster comparison</span>
-</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="sd">stat : Statistics</span>
-</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="sd">    Statistical analysis tools including cluster distribution analysis</span>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="sd">Functions</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="sd">---------</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="sd">reorder_clusters</span>
-</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="sd">    Reorder cluster labels based on specific criteria</span>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="sd">leiden_multi_resolution</span>
-</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="sd">    Perform Leiden clustering at multiple resolutions</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="sd">cluster_sankey_diagram</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="sd">    Create Sankey diagram to visualize cluster relationships</span>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="sd">cluster_distribution</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="sd">    Analyze and compute cluster distribution statistics</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.tl</span><span class="w"> </span><span class="kn">import</span> <span class="n">reorder_clusters</span><span class="p">,</span> <span class="n">leiden_multi_resolution</span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.pl</span><span class="w"> </span><span class="kn">import</span> <span class="n">cluster_sankey_diagram</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.stat</span><span class="w"> </span><span class="kn">import</span> <span class="n">cluster_distribution</span><span class="p">,</span> <span class="n">ensemble_identify_cluster_markers</span>
-</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.1.0&#39;</span>
+</span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a>
+</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="sd">A collection of utility functions extending Scanpy functionality for single-cell RNA sequencing analysis.</span>
+</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a>
+</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a><span class="sd">Main Components:</span>
+</span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a><span class="sd">---------------</span>
+</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a><span class="sd">- tl: Analysis tools including cluster reordering and multi-resolution Leiden clustering</span>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="sd">- pl: Visualization tools including Sankey diagrams for cluster comparison</span>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a><span class="sd">- stat: Statistical analysis tools including cluster distribution analysis</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="sd">Functions:</span>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="sd">---------</span>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="sd">- reorder_clusters: Reorder cluster labels based on specific criteria</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="sd">- leiden_multi_resolution: Perform Leiden clustering at multiple resolutions</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="sd">- cluster_sankey_diagram: Create Sankey diagram to visualize cluster relationships</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="sd">- cluster_distribution: Analyze and compute cluster distribution statistics</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.tl</span><span class="w"> </span><span class="kn">import</span> <span class="n">reorder_clusters</span><span class="p">,</span> <span class="n">leiden_multi_resolution</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.pl</span><span class="w"> </span><span class="kn">import</span> <span class="n">cluster_sankey_diagram</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="kn">from</span><span class="w"> </span><span class="nn">.stat</span><span class="w"> </span><span class="kn">import</span> <span class="n">cluster_distribution</span><span class="p">,</span> <span class="n">ensemble_identify_cluster_markers</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.1.0&#39;</span>
 </span></pre></div>
 
 
