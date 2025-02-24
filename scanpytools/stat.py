@@ -207,6 +207,7 @@ def ensemble_identify_cluster_markers(
         final_df['pct_group'] = final_df[pct_nz_group_columns].mean(axis=1).round(2)
         final_df['pct_rest'] = final_df[pct_nz_reference_columns].mean(axis=1).round(2)
         final_df['pct_diff'] = final_df['pct_group'] - final_df['pct_rest']
+        final_df['pct_diff'] = final_df['pct_diff'].round(2)
         final_df = final_df.drop(columns=pct_nz_group_columns + pct_nz_reference_columns)
     
     # Add rank for pct_diff within each cluster
