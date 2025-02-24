@@ -11,85 +11,127 @@ def cluster_distribution(
     """
     Calculate the distribution of clusters across groups in AnnData object.
 
-    Parameters:
-    -----------
-    adata : AnnData
-        Annotated data matrix.
-    group : str
-        Column name in adata.obs for grouping.
-    cluster : str
-        Column name in adata.obs for clusters.
-    normalize : bool, optional (default=True)
-        If True, return percentages. If False, return counts.
+    This function computes either the counts or percentages of cells from each cluster
+    that are present in each group. The result is a matrix where rows represent clusters
+    and columns represent groups.
 
-    Returns:
-    --------
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix containing cell annotations.
+    group : str
+        Column name in adata.obs containing group labels (e.g., 'condition', 'treatment').
+    cluster : str
+        Column name in adata.obs containing cluster labels (e.g., 'leiden', 'louvain').
+    normalize : bool, optional (default=True)
+        If True, return percentages (0-100).
+        If False, return absolute counts.
+
+    Returns
+    -------
     pd.DataFrame
         Matrix of cluster distributions across groups.
+        Rows: clusters
+        Columns: groups
+        Values: percentages (if normalize=True) or counts (if normalize=False)
 
-    Raises:
-    -------
+    Raises
+    ------
     ValueError
         If group or cluster columns are not found in adata.obs
+    RuntimeError
+        If an error occurs during calculation
+
+    Examples
+    --------
+    >>> import scanpy as sc
+    >>> adata = sc.datasets.pbmc3k()
+    >>> sc.tl.leiden(adata)
+    >>> result = cluster_distribution(adata, group='bulk_labels', cluster='leiden')
+    >>> print(result)
     """
-    # Input validation
+    # Validate input columns exist in adata.obs
     if group not in adata.obs.columns:
         raise ValueError(f"Group column '{group}' not found in adata.obs")
     if cluster not in adata.obs.columns:
         raise ValueError(f"Cluster column '{cluster}' not found in adata.obs")
 
     try:
+        # Calculate distribution using pandas operations
         grouped = adata.obs[[group, cluster]].groupby(group, observed=True)
         value_counts = grouped.value_counts(normalize=normalize)
         
+        # Convert to percentages if normalized
         if normalize:
             value_counts = value_counts * 100
             rounded_counts = value_counts.round(1)
         else:
             rounded_counts = value_counts
 
+        # Reshape result to matrix form and fill missing values
         result = rounded_counts.unstack().fillna(0).transpose()
         return result
     
     except Exception as e:
         raise RuntimeError(f"Error calculating cluster distribution: {str(e)}")
-    
-def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overestim_var", "t-test", "logreg"], n_cores=-1):
+
+def ensemble_identify_cluster_markers(
+    adata: AnnData,
+    methods: list = ["wilcoxon", "t-test_overestim_var", "t-test", "logreg"],
+    n_cores: int = -1
+) -> pd.DataFrame:
     """
-    Perform differential expression analysis using multiple methods and combine results.
-    This function runs multiple differential expression analyses on highly variable genes using
-    different statistical methods, merges the results, and calculates a consensus ranking based
-    on median ranks across methods.
+    Perform ensemble differential expression analysis using multiple statistical methods.
+
+    This function combines results from multiple differential expression methods to identify
+    robust marker genes for each cluster. It calculates a consensus ranking based on the
+    median ranks across all methods used.
+
     Parameters
     ----------
     adata : AnnData
-        Annotated data matrix with the following requirements:
-        - Must have 'highly_variable' column in .var
-        - Must have 'cluster' column in .obs
+        Annotated data matrix that must contain:
+        - 'highly_variable' column in .var identifying variable genes
+        - 'cluster' column in .obs containing cluster labels
     methods : list, optional
-        List of methods to use for differential expression analysis.
-        Default is ["wilcoxon", "t-test_overestim_var", "t-test", "logreg"]
-        Must be valid methods accepted by scanpy.tl.rank_genes_groups
+        Statistical methods to use for differential expression analysis.
+        Must be valid methods for scanpy.tl.rank_genes_groups.
+        Default: ["wilcoxon", "t-test_overestim_var", "t-test", "logreg"]
     n_cores : int, optional
-        Number of jobs for parallel processing. If -1, all CPUs are used.
-        Default is -1.
+        Number of CPU cores for parallel processing.
+        Default: -1 (use all available cores)
+
     Returns
     -------
-    pandas.DataFrame
-        A DataFrame containing merged results from all methods with the following columns:
-        - 'names': Gene names
-        - 'cluster': Cluster identifiers
-        - '{method}_rank': Rank of genes for each method
-        - '{method}_scores': Scores for each method
-        - '{method}_pvals': P-values if available
-        - '{method}_pvals_adj': Adjusted p-values if available
-        - '{method}_logfoldchanges': Log fold changes if available
-        - 'median_rank': Consensus ranking based on median of method-specific ranks
+    pd.DataFrame
+        Combined results with the following columns:
+        - names: Gene names
+        - cluster: Cluster identifiers
+        - {method}_rank: Rankings from each method
+        - {method}_scores: Scores from each method
+        - {method}_pvals: P-values (if available)
+        - {method}_pvals_adj: Adjusted p-values (if available)
+        - logfoldchanges: Mean log fold changes across methods
+        - pct_group: Mean percentage of cells expressing gene in cluster
+        - pct_rest: Mean percentage of cells expressing gene in other clusters
+        - pct_diff: Difference between pct_group and pct_rest
+        - median_rank: Consensus ranking across all methods
+
     Notes
     -----
-    - Only genes with adjusted p-value < 0.05 (when available) are included in results
-    - Final results are sorted by cluster and median rank
-    - Ranks are recalculated to be 1-based within each cluster
+    - Analysis is performed only on highly variable genes
+    - Results are filtered by adjusted p-value < 0.05 when available
+    - Final rankings are 1-based within each cluster
+    - Results are sorted by cluster and median rank
+
+    Examples
+    --------
+    >>> import scanpy as sc
+    >>> adata = sc.datasets.pbmc3k()
+    >>> sc.pp.highly_variable_genes(adata)
+    >>> sc.tl.leiden(adata, key_added='cluster')
+    >>> markers = ensemble_identify_cluster_markers(adata)
+    >>> print(markers.head())
     """
     # Make a copy and subset to HVG
     adata_copy = adata[:,adata.var["highly_variable"]].copy()
@@ -148,7 +190,7 @@ def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overes
     logfc_methods = [m for m in methods if m != 'logreg']
     if logfc_methods:
         logfc_columns = [f'{method}_logfoldchanges' for method in logfc_methods]
-        final_df['logfoldchanges'] = final_df[logfc_columns].mean(axis=1)
+        final_df['logfoldchanges'] = final_df[logfc_columns].mean(axis=1).round(2)
         final_df = final_df.drop(columns=logfc_columns)
     
     # Add rank for logfoldchanges within each cluster
@@ -162,8 +204,8 @@ def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overes
     if pct_nz_methods:
         pct_nz_group_columns = [f'{method}_pct_nz_group' for method in pct_nz_methods]
         pct_nz_reference_columns = [f'{method}_pct_nz_reference' for method in pct_nz_methods]
-        final_df['pct_group'] = final_df[pct_nz_group_columns].mean(axis=1)
-        final_df['pct_rest'] = final_df[pct_nz_reference_columns].mean(axis=1)
+        final_df['pct_group'] = final_df[pct_nz_group_columns].mean(axis=1).round(2)
+        final_df['pct_rest'] = final_df[pct_nz_reference_columns].mean(axis=1).round(2)
         final_df['pct_diff'] = final_df['pct_group'] - final_df['pct_rest']
         final_df = final_df.drop(columns=pct_nz_group_columns + pct_nz_reference_columns)
     
