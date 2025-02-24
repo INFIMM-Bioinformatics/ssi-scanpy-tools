@@ -54,8 +54,7 @@ def cluster_distribution(
     except Exception as e:
         raise RuntimeError(f"Error calculating cluster distribution: {str(e)}")
     
-# def ensemble_rank_genes_groups(adata, groupby)
-def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overestim_var", "t-test", "logreg"]):
+def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overestim_var", "t-test", "logreg"], n_cores=-1):
     """
     Perform differential expression analysis using multiple methods and combine results.
     This function runs multiple differential expression analyses on highly variable genes using
@@ -71,6 +70,9 @@ def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overes
         List of methods to use for differential expression analysis.
         Default is ["wilcoxon", "t-test_overestim_var", "t-test", "logreg"]
         Must be valid methods accepted by scanpy.tl.rank_genes_groups
+    n_cores : int, optional
+        Number of jobs for parallel processing. If -1, all CPUs are used.
+        Default is -1.
     Returns
     -------
     pandas.DataFrame
@@ -106,7 +108,8 @@ def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overes
                               method=method,
                               rankby_abs=True,
                               pts=True,
-                              key_added=method)
+                              key_added=method,
+                              n_jobs=n_cores)
         
         # Process each cluster
         method_results = []
@@ -151,108 +154,6 @@ def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overes
         
         # Reset rank to be 1-based within each cluster
         final_df.loc[mask, 'median_rank'] = final_df.loc[mask, 'median_rank'].rank(method='min')
-    
-    # Sort by cluster and median rank
-    final_df = final_df.sort_values(['cluster', 'median_rank'])
-    
-    return final_df
-
-def ensemble_identify_cluster_markers_optimized(adata, methods=["wilcoxon", "t-test_overestim_var", "t-test", "logreg"]):
-    """
-    Optimized version of ensemble_identify_cluster_markers with improved performance.
-    Uses numpy operations instead of pandas where possible and reduces memory allocations.
-    
-    Parameters and returns are the same as ensemble_identify_cluster_markers.
-    """
-    import numpy as np
-    from scipy import stats
-    
-    # Make a copy and subset to HVG
-    adata_copy = adata[:,adata.var["highly_variable"]].copy()
-    print(f"Running analysis on {adata_copy.n_vars} highly variable genes")
-    
-    # Pre-allocate dictionaries for results
-    clusters = sorted(adata_copy.obs['cluster'].unique())
-    method_results = {method: {} for method in methods}
-    
-    # Process each method
-    for method in methods:
-        print(f"Processing method: {method}")
-        
-        # Run rank_genes_groups
-        sc.tl.rank_genes_groups(adata_copy, 
-                              groupby='cluster',
-                              method=method,
-                              rankby_abs=True,
-                              pts=True,
-                              key_added=method)
-        
-        # Pre-allocate lists for each cluster
-        for cluster in clusters:
-            df = sc.get.rank_genes_groups_df(adata_copy, group=cluster, key=method)
-            
-            # Filter by adjusted p-value if available
-            if 'pvals_adj' in df.columns:
-                mask = df['pvals_adj'] < 0.05
-                df = df[mask]
-            
-            # Store as dict for faster access
-            method_results[method][cluster] = {
-                'names': df['names'].values,
-                'scores': df['scores'].values if 'scores' in df else None,
-                'pvals': df['pvals'].values if 'pvals' in df else None,
-                'pvals_adj': df['pvals_adj'].values if 'pvals_adj' in df else None,
-                'logfoldchanges': df['logfoldchanges'].values if 'logfoldchanges' in df else None
-            }
-    
-    # Build final results using sets for faster lookups
-    all_genes = set()
-    for method_dict in method_results.values():
-        for cluster_dict in method_dict.values():
-            all_genes.update(cluster_dict['names'])
-    
-    # Create final dataframe more efficiently
-    final_data = []
-    
-    for cluster in clusters:
-        cluster_genes = set()
-        for method in methods:
-            cluster_genes.update(method_results[method][cluster]['names'])
-        
-        for gene in cluster_genes:
-            row = {'cluster': cluster, 'names': gene}
-            
-            # Get ranks and scores for each method
-            method_ranks = []
-            for method in methods:
-                cluster_data = method_results[method][cluster]
-                try:
-                    idx = np.where(cluster_data['names'] == gene)[0][0]
-                    row[f'{method}_rank'] = idx + 1
-                    if cluster_data['scores'] is not None:
-                        row[f'{method}_scores'] = cluster_data['scores'][idx]
-                    if cluster_data['pvals'] is not None:
-                        row[f'{method}_pvals'] = cluster_data['pvals'][idx]
-                    if cluster_data['pvals_adj'] is not None:
-                        row[f'{method}_pvals_adj'] = cluster_data['pvals_adj'][idx]
-                    if cluster_data['logfoldchanges'] is not None:
-                        row[f'{method}_logfoldchanges'] = cluster_data['logfoldchanges'][idx]
-                    method_ranks.append(idx + 1)
-                except (IndexError, KeyError):
-                    row[f'{method}_rank'] = np.nan
-            
-            # Calculate median rank
-            if method_ranks:
-                row['median_rank'] = np.nanmedian(method_ranks)
-                final_data.append(row)
-    
-    final_df = pd.DataFrame(final_data)
-    
-    # Rank within clusters more efficiently using numpy
-    for cluster in clusters:
-        mask = final_df['cluster'] == cluster
-        ranks = final_df.loc[mask, 'median_rank'].values
-        final_df.loc[mask, 'median_rank'] = stats.rankdata(ranks, method='min')
     
     # Sort by cluster and median rank
     final_df = final_df.sort_values(['cluster', 'median_rank'])
