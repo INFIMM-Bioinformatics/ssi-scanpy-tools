@@ -45,11 +45,3 @@ jobs:
         with:
           folder: docs
           branch: gh-pages
-          
-      - name: Verify deployment
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          echo "Checking gh-pages branch content:"
-          git fetch origin gh-pages
-          git checkout gh-pages
-          ls -la
