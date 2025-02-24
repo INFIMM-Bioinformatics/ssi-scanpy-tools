@@ -1,28 +1,20 @@
 """
 scanpytools
-===========
 
 A collection of utility functions extending Scanpy functionality for single-cell RNA sequencing analysis.
 
-Main Components
---------------
-tl : Tools
-    Analysis tools including cluster reordering and multi-resolution Leiden clustering
-pl : Plotting
-    Visualization tools including Sankey diagrams for cluster comparison
-stat : Statistics
-    Statistical analysis tools including cluster distribution analysis
+Main Components:
+---------------
+- tl: Analysis tools including cluster reordering and multi-resolution Leiden clustering
+- pl: Visualization tools including Sankey diagrams for cluster comparison
+- stat: Statistical analysis tools including cluster distribution analysis
 
-Functions
+Functions:
 ---------
-reorder_clusters
-    Reorder cluster labels based on specific criteria
-leiden_multi_resolution
-    Perform Leiden clustering at multiple resolutions
-cluster_sankey_diagram
-    Create Sankey diagram to visualize cluster relationships
-cluster_distribution
-    Analyze and compute cluster distribution statistics
+- reorder_clusters: Reorder cluster labels based on specific criteria
+- leiden_multi_resolution: Perform Leiden clustering at multiple resolutions
+- cluster_sankey_diagram: Create Sankey diagram to visualize cluster relationships
+- cluster_distribution: Analyze and compute cluster distribution statistics
 """
 
 from .tl import reorder_clusters, leiden_multi_resolution
