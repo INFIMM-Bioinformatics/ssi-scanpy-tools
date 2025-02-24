@@ -144,6 +144,35 @@ def ensemble_identify_cluster_markers(adata, methods=["wilcoxon", "t-test_overes
         else:
             final_df = final_df.merge(df, on=['names', 'cluster'], how='outer')
     
+    # Keep only one logfoldchange column from methods that have it
+    logfc_methods = [m for m in methods if m != 'logreg']
+    if logfc_methods:
+        logfc_columns = [f'{method}_logfoldchanges' for method in logfc_methods]
+        final_df['logfoldchanges'] = final_df[logfc_columns].mean(axis=1)
+        final_df = final_df.drop(columns=logfc_columns)
+    
+    # Add rank for logfoldchanges within each cluster
+    if 'logfoldchanges' in final_df.columns:
+        for cluster in final_df['cluster'].unique():
+            mask = final_df['cluster'] == cluster
+            final_df.loc[mask, 'logfoldchanges_rank'] = final_df.loc[mask, 'logfoldchanges'].abs().rank(method='min', ascending=False)
+
+    # Keep only one *_pct_nz and *_pct_nz_reference column from methods that have it
+    pct_nz_methods = [m for m in methods if m != 'logreg']
+    if pct_nz_methods:
+        pct_nz_group_columns = [f'{method}_pct_nz_group' for method in pct_nz_methods]
+        pct_nz_reference_columns = [f'{method}_pct_nz_reference' for method in pct_nz_methods]
+        final_df['pct_group'] = final_df[pct_nz_group_columns].mean(axis=1)
+        final_df['pct_rest'] = final_df[pct_nz_reference_columns].mean(axis=1)
+        final_df['pct_diff'] = final_df['pct_group'] - final_df['pct_rest']
+        final_df = final_df.drop(columns=pct_nz_group_columns + pct_nz_reference_columns)
+    
+    # Add rank for pct_diff within each cluster
+    if 'pct_diff' in final_df.columns:
+        for cluster in final_df['cluster'].unique():
+            mask = final_df['cluster'] == cluster
+            final_df.loc[mask, 'pct_diff_rank'] = final_df.loc[mask, 'pct_diff'].abs().rank(method='min', ascending=False)
+
     # After merging all methods, calculate cluster-wise median rank
     rank_columns = [f'{method}_rank' for method in methods]
     
