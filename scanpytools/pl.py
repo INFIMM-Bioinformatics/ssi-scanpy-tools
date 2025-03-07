@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
     """
@@ -87,3 +88,42 @@ def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
         return fig
     else:
         fig.show()
+
+
+def plot_multi_resolution_umap(adata, group, resolution_prefix, ncols=2, n_resolutions = None):
+    """
+    Plot UMAPS showing clustering results for multiple resolutions.
+    This function creates a multi-panel UMAP visualization showing a given grouping variable
+    and multiple Leiden clustering results at different resolutions.
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix that contains UMAP coordinates and clustering results.
+    group : str
+        Column name in adata.obs for the reference grouping variable to show in the first panel.
+    resolution_prefix : str
+        Prefix used to identify columns in adata.obs that contain clustering results at different resolutions.
+        The function will select all columns that start with this prefix.
+    ncols : int, optional (default: 2)
+        Number of panels per row in the output figure.
+    n_resolutions : int, optional (default: None)
+        Number of resolutions to plot. If None, all found resolutions will be plotted.
+    Returns
+    -------
+    matplotlib.figure.Figure
+        A figure containing the UMAP plots.
+    Examples
+    --------
+    >>> plot_multi_resolution_umap(adata, 'cell_type', 'leiden_res_', ncols=3, n_resolutions=5)
+    """
+    resolutions = [col for col in adata.obs.columns if col.startswith(resolution_prefix)]
+
+    if n_resolutions is not None:
+        resolutions = resolutions[:n_resolutions]
+    
+
+    titles = [f'UMAP ({group})'] + [f'UMAP (res={res.split("_")[1]})' for res in resolutions]
+
+    with plt.rc_context({'figure.figsize': (3, 3)}):
+        umap = sc.pl.umap(adata, color=[group] + resolutions, legend_loc='on data', ncols=ncols, title=titles, return_fig=True)
+    return umap
