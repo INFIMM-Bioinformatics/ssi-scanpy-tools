@@ -78,6 +78,7 @@ def cluster_distribution(
 def ensemble_identify_cluster_markers(
     adata: AnnData,
     methods: list = ["wilcoxon", "t-test_overestim_var", "t-test", "logreg"],
+    var_cluster: str = "cluster",
     n_cores: int = -1
 ) -> pd.DataFrame:
     """
@@ -92,7 +93,7 @@ def ensemble_identify_cluster_markers(
     adata : AnnData
         Annotated data matrix that must contain:
         - 'highly_variable' column in .var identifying variable genes
-        - 'cluster' column in .obs containing cluster labels
+        - var_cluster column in .obs containing cluster labels
     methods : list, optional
         Statistical methods to use for differential expression analysis.
         Must be valid methods for scanpy.tl.rank_genes_groups.
@@ -129,7 +130,7 @@ def ensemble_identify_cluster_markers(
     >>> import scanpy as sc
     >>> adata = sc.datasets.pbmc3k()
     >>> sc.pp.highly_variable_genes(adata)
-    >>> sc.tl.leiden(adata, key_added='cluster')
+    >>> sc.tl.leiden(adata, key_added=var_cluster)
     >>> markers = ensemble_identify_cluster_markers(adata)
     >>> print(markers.head())
     """
@@ -146,23 +147,23 @@ def ensemble_identify_cluster_markers(
         
         # Run rank_genes_groups
         sc.tl.rank_genes_groups(adata_copy, 
-                              groupby='cluster',
+                              groupby=var_cluster,
                               method=method,
-                              rankby_abs=True,
+                              rankby_abs=False,
                               pts=True,
                               key_added=method,
                               n_jobs=n_cores)
         
         # Process each cluster
         method_results = []
-        clusters = sorted(adata_copy.obs['cluster'].unique())
+        clusters = sorted(adata_copy.obs[var_cluster].unique())
         
         for cluster in clusters:
-            # Get results for this cluster
-            df = sc.get.rank_genes_groups_df(adata_copy, group=cluster, key=method)
+            # Get results for this cluster - convert cluster to string to avoid KeyError
+            df = sc.get.rank_genes_groups_df(adata_copy, group=str(cluster), key=method)
             
             # Add cluster info and rank
-            df.insert(0, 'cluster', cluster)
+            df.insert(0, var_cluster, cluster)
             df['rank'] = range(1, len(df) + 1)
             
             # Filter by adjusted p-value if available
@@ -170,7 +171,7 @@ def ensemble_identify_cluster_markers(
                 df = df[df['pvals_adj'] < 0.05]
             
             # Prefix column names with method except names and cluster
-            df.columns = [f'{method}_{col}' if col not in ['names', 'cluster'] 
+            df.columns = [f'{method}_{col}' if col not in ['names', var_cluster] 
                          else col for col in df.columns]
             
             method_results.append(df)
@@ -184,7 +185,7 @@ def ensemble_identify_cluster_markers(
         if final_df is None:
             final_df = df
         else:
-            final_df = final_df.merge(df, on=['names', 'cluster'], how='outer')
+            final_df = final_df.merge(df, on=['names', var_cluster], how='outer')
     
     # Keep only one logfoldchange column from methods that have it
     logfc_methods = [m for m in methods if m != 'logreg']
@@ -195,39 +196,41 @@ def ensemble_identify_cluster_markers(
     
     # Add rank for logfoldchanges within each cluster
     if 'logfoldchanges' in final_df.columns:
-        for cluster in final_df['cluster'].unique():
-            mask = final_df['cluster'] == cluster
-            final_df.loc[mask, 'logfoldchanges_rank'] = final_df.loc[mask, 'logfoldchanges'].abs().rank(method='min', ascending=False)
+        for cluster in final_df[var_cluster].unique():
+            mask = final_df[var_cluster] == cluster
+            final_df.loc[mask, 'logfoldchanges_rank'] = final_df.loc[mask, 'logfoldchanges'].rank(method='min', ascending=False)
 
     # Keep only one *_pct_nz and *_pct_nz_reference column from methods that have it
     pct_nz_methods = [m for m in methods if m != 'logreg']
     if pct_nz_methods:
         pct_nz_group_columns = [f'{method}_pct_nz_group' for method in pct_nz_methods]
         pct_nz_reference_columns = [f'{method}_pct_nz_reference' for method in pct_nz_methods]
-        final_df['pct_group'] = final_df[pct_nz_group_columns].mean(axis=1).round(2)
-        final_df['pct_rest'] = final_df[pct_nz_reference_columns].mean(axis=1).round(2)
+        final_df['pct_group'] = (final_df[pct_nz_group_columns].mean(axis=1).round(2))*100
+        final_df['pct_rest'] = (final_df[pct_nz_reference_columns].mean(axis=1).round(2))*100
         final_df['pct_diff'] = final_df['pct_group'] - final_df['pct_rest']
         final_df['pct_diff'] = final_df['pct_diff'].round(2)
         final_df = final_df.drop(columns=pct_nz_group_columns + pct_nz_reference_columns)
     
     # Add rank for pct_diff within each cluster
     if 'pct_diff' in final_df.columns:
-        for cluster in final_df['cluster'].unique():
-            mask = final_df['cluster'] == cluster
-            final_df.loc[mask, 'pct_diff_rank'] = final_df.loc[mask, 'pct_diff'].abs().rank(method='min', ascending=False)
+        for cluster in final_df[var_cluster].unique():
+            mask = final_df[var_cluster] == cluster
+            final_df.loc[mask, 'pct_diff_rank'] = final_df.loc[mask, 'pct_diff'].rank(method='min', ascending=False)
 
     # After merging all methods, calculate cluster-wise median rank
     rank_columns = [f'{method}_rank' for method in methods]
     
     # Group by cluster and calculate median rank within each cluster
-    for cluster in final_df['cluster'].unique():
-        mask = final_df['cluster'] == cluster
+    for cluster in final_df[var_cluster].unique():
+        mask = final_df[var_cluster] == cluster
         final_df.loc[mask, 'median_rank'] = final_df.loc[mask, rank_columns].median(axis=1)
-        
+        final_df.loc[mask, 'mean_rank'] = final_df.loc[mask, rank_columns].mean(axis=1)
+
         # Reset rank to be 1-based within each cluster
         final_df.loc[mask, 'median_rank'] = final_df.loc[mask, 'median_rank'].rank(method='min')
-    
+        final_df.loc[mask, 'mean_rank'] = final_df.loc[mask, 'mean_rank'].rank(method='min')
+
     # Sort by cluster and median rank
-    final_df = final_df.sort_values(['cluster', 'median_rank'])
+    final_df = final_df.sort_values([var_cluster, 'median_rank', "mean_rank"])
     
     return final_df
