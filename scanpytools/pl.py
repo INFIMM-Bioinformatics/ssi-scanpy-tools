@@ -1,6 +1,7 @@
 import plotly.graph_objects as go
 import pandas as pd
 import matplotlib.pyplot as plt
+import scanpy as sc
 
 def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
     """
