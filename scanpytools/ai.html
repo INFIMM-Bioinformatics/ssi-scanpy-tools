@@ -39,6 +39,9 @@
             <li>
                     <a class="function" href="#gene_x_function_in_the_context_of_y_as_Z">gene_x_function_in_the_context_of_y_as_Z</a>
             </li>
+            <li>
+                    <a class="function" href="#prioritize_genes">prioritize_genes</a>
+            </li>
     </ul>
 
 
@@ -161,22 +164,76 @@
 </span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
 </span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>    <span class="c1"># Calculate the duration</span>
 </span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>    <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>
-</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>    <span class="c1"># Prepare the response dictionary</span>
-</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>    <span class="n">response_dictionary</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
-</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>    <span class="n">assistant_message</span> <span class="o">=</span> <span class="n">response_dictionary</span><span class="p">[</span><span class="s1">&#39;choices&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;message&#39;</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span>
-</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>
-</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>    <span class="c1"># Return the response and optionally the duration</span>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;response&quot;</span><span class="p">:</span> <span class="n">response_dictionary</span><span class="p">}</span>
-</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>    <span class="k">if</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
-</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span>
-</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>    <span class="k">elif</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text_concise&quot;</span><span class="p">:</span>
-</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;/think&gt;&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>
-</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>    <span class="k">if</span> <span class="n">include_duration</span><span class="p">:</span>
-</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;duration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">duration</span>
-</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>
-</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>    <span class="k">return</span> <span class="n">result</span>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>    <span class="n">duration</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">duration</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>
+</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>    <span class="c1"># Prepare the response dictionary</span>
+</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>    <span class="n">response_dictionary</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>    <span class="n">assistant_message</span> <span class="o">=</span> <span class="n">response_dictionary</span><span class="p">[</span><span class="s1">&#39;choices&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;message&#39;</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span>
+</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>    <span class="c1"># Return the response and optionally the duration</span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;response&quot;</span><span class="p">:</span> <span class="n">response_dictionary</span><span class="p">}</span>
+</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>    <span class="k">if</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
+</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span>
+</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>    <span class="k">elif</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text_concise&quot;</span><span class="p">:</span>
+</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;/think&gt;&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>
+</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>    <span class="k">if</span> <span class="n">include_duration</span><span class="p">:</span>
+</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;duration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">duration</span>
+</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>
+</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>    <span class="k">return</span> <span class="n">result</span>
+</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a>
+</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a><span class="k">def</span><span class="w"> </span><span class="nf">prioritize_genes</span><span class="p">(</span><span class="n">gene_list</span><span class="p">,</span> <span class="n">hf_token</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="n">llm_model</span><span class="o">=</span><span class="s2">&quot;deepseek-ai/DeepSeek-R1-Distill-Qwen-14B&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">2000</span><span class="p">):</span>
+</span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a><span class="sd">    Retrieve the top 20 genes and their descriptions in the context of T cell biology using a Hugging Face model.</span>
+</span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a>
+</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a><span class="sd">    Args:</span>
+</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a><span class="sd">        gene_list (list of str): A list of gene names to be processed.</span>
+</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a><span class="sd">        hf_token (str): The Hugging Face API token for authentication.</span>
+</span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a><span class="sd">        model (str, optional): The model to be used for inference. Defaults to &quot;deepseek-ai/DeepSeek-R1-Distill-Qwen-14B&quot;.</span>
+</span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a><span class="sd">        max_tokens (int, optional): The maximum number of tokens to be generated by the model. Defaults to 2000.</span>
+</span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a>
+</span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a><span class="sd">    Returns:</span>
+</span><span id="L-131"><a href="#L-131"><span class="linenos">131</span></a><span class="sd">        tuple: A tuple containing:</span>
+</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a><span class="sd">            - full_reason_process (str): The full response content from the model.</span>
+</span><span id="L-133"><a href="#L-133"><span class="linenos">133</span></a><span class="sd">            - top_20_genes_dict (dict): A dictionary containing the top 20 genes as keys and their descriptions as values.</span>
+</span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a>    <span class="c1"># Convert to text</span>
+</span><span id="L-136"><a href="#L-136"><span class="linenos">136</span></a>    <span class="n">gene_list_character</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">gene</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">gene_list</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span>
+</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a>
+</span><span id="L-138"><a href="#L-138"><span class="linenos">138</span></a>    <span class="c1"># Perform the huggingface inference</span>
+</span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">huggingface_hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">InferenceClient</span>
+</span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a>
+</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a>    <span class="n">client</span> <span class="o">=</span> <span class="n">InferenceClient</span><span class="p">(</span>
+</span><span id="L-142"><a href="#L-142"><span class="linenos">142</span></a>        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;novita&quot;</span><span class="p">,</span>
+</span><span id="L-143"><a href="#L-143"><span class="linenos">143</span></a>        <span class="n">api_key</span><span class="o">=</span><span class="n">hf_token</span><span class="p">,</span>
+</span><span id="L-144"><a href="#L-144"><span class="linenos">144</span></a>    <span class="p">)</span>
+</span><span id="L-145"><a href="#L-145"><span class="linenos">145</span></a>
+</span><span id="L-146"><a href="#L-146"><span class="linenos">146</span></a>    <span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="L-147"><a href="#L-147"><span class="linenos">147</span></a>        <span class="p">{</span>
+</span><span id="L-148"><a href="#L-148"><span class="linenos">148</span></a>            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+</span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a>            <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Given the context of T cell biology, go through all of the genes below and return the top </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> genes in the format of gene - function: &quot;</span> <span class="o">+</span> <span class="n">gene_list_character</span>
+</span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a>        <span class="p">}</span>
+</span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a>    <span class="p">]</span>
+</span><span id="L-152"><a href="#L-152"><span class="linenos">152</span></a>
+</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a>    <span class="n">completion</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="L-154"><a href="#L-154"><span class="linenos">154</span></a>        <span class="n">model</span><span class="o">=</span><span class="n">llm_model</span><span class="p">,</span> 
+</span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a>        <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span> 
+</span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a>        <span class="n">max_tokens</span><span class="o">=</span><span class="n">max_tokens</span><span class="p">,</span>
+</span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a>    <span class="p">)</span>
+</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a>
+</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>    <span class="n">full_reason_process</span> <span class="o">=</span> <span class="n">completion</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span>
+</span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a> 
+</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a>    <span class="c1"># Output the response</span>
+</span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">re</span> 
+</span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a>
+</span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a>    <span class="c1"># Extract the top 20 genes and their descriptions using regex</span>
+</span><span id="L-165"><a href="#L-165"><span class="linenos">165</span></a>    <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;\*\*(\w+)\*\* - ([^\n]+)&#39;</span>
+</span><span id="L-166"><a href="#L-166"><span class="linenos">166</span></a>    <span class="n">top_20_genes_with_descriptions</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">response_content</span><span class="p">)</span>
+</span><span id="L-167"><a href="#L-167"><span class="linenos">167</span></a>    
+</span><span id="L-168"><a href="#L-168"><span class="linenos">168</span></a>    <span class="c1"># Convert the list of tuples to a dictionary</span>
+</span><span id="L-169"><a href="#L-169"><span class="linenos">169</span></a>    <span class="n">top_20_genes_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">gene</span><span class="p">:</span> <span class="n">description</span> <span class="k">for</span> <span class="n">gene</span><span class="p">,</span> <span class="n">description</span> <span class="ow">in</span> <span class="n">top_20_genes_with_descriptions</span><span class="p">}</span>
+</span><span id="L-170"><a href="#L-170"><span class="linenos">170</span></a>    
+</span><span id="L-171"><a href="#L-171"><span class="linenos">171</span></a>    <span class="k">return</span> <span class="n">full_reason_process</span><span class="p">,</span> <span class="n">top_20_genes_dict</span>
 </span></pre></div>
 
 
@@ -335,22 +392,23 @@
 </span><span id="gene_x_function_in_the_context_of_y_as_Z-100"><a href="#gene_x_function_in_the_context_of_y_as_Z-100"><span class="linenos">100</span></a>
 </span><span id="gene_x_function_in_the_context_of_y_as_Z-101"><a href="#gene_x_function_in_the_context_of_y_as_Z-101"><span class="linenos">101</span></a>    <span class="c1"># Calculate the duration</span>
 </span><span id="gene_x_function_in_the_context_of_y_as_Z-102"><a href="#gene_x_function_in_the_context_of_y_as_Z-102"><span class="linenos">102</span></a>    <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-103"><a href="#gene_x_function_in_the_context_of_y_as_Z-103"><span class="linenos">103</span></a>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-104"><a href="#gene_x_function_in_the_context_of_y_as_Z-104"><span class="linenos">104</span></a>    <span class="c1"># Prepare the response dictionary</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-105"><a href="#gene_x_function_in_the_context_of_y_as_Z-105"><span class="linenos">105</span></a>    <span class="n">response_dictionary</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-106"><a href="#gene_x_function_in_the_context_of_y_as_Z-106"><span class="linenos">106</span></a>    <span class="n">assistant_message</span> <span class="o">=</span> <span class="n">response_dictionary</span><span class="p">[</span><span class="s1">&#39;choices&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;message&#39;</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-107"><a href="#gene_x_function_in_the_context_of_y_as_Z-107"><span class="linenos">107</span></a>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-108"><a href="#gene_x_function_in_the_context_of_y_as_Z-108"><span class="linenos">108</span></a>    <span class="c1"># Return the response and optionally the duration</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-109"><a href="#gene_x_function_in_the_context_of_y_as_Z-109"><span class="linenos">109</span></a>    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;response&quot;</span><span class="p">:</span> <span class="n">response_dictionary</span><span class="p">}</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-110"><a href="#gene_x_function_in_the_context_of_y_as_Z-110"><span class="linenos">110</span></a>    <span class="k">if</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-111"><a href="#gene_x_function_in_the_context_of_y_as_Z-111"><span class="linenos">111</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-112"><a href="#gene_x_function_in_the_context_of_y_as_Z-112"><span class="linenos">112</span></a>    <span class="k">elif</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text_concise&quot;</span><span class="p">:</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-113"><a href="#gene_x_function_in_the_context_of_y_as_Z-113"><span class="linenos">113</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;/think&gt;&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-114"><a href="#gene_x_function_in_the_context_of_y_as_Z-114"><span class="linenos">114</span></a>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-115"><a href="#gene_x_function_in_the_context_of_y_as_Z-115"><span class="linenos">115</span></a>    <span class="k">if</span> <span class="n">include_duration</span><span class="p">:</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-116"><a href="#gene_x_function_in_the_context_of_y_as_Z-116"><span class="linenos">116</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;duration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">duration</span>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-117"><a href="#gene_x_function_in_the_context_of_y_as_Z-117"><span class="linenos">117</span></a>
-</span><span id="gene_x_function_in_the_context_of_y_as_Z-118"><a href="#gene_x_function_in_the_context_of_y_as_Z-118"><span class="linenos">118</span></a>    <span class="k">return</span> <span class="n">result</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-103"><a href="#gene_x_function_in_the_context_of_y_as_Z-103"><span class="linenos">103</span></a>    <span class="n">duration</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">duration</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-104"><a href="#gene_x_function_in_the_context_of_y_as_Z-104"><span class="linenos">104</span></a>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-105"><a href="#gene_x_function_in_the_context_of_y_as_Z-105"><span class="linenos">105</span></a>    <span class="c1"># Prepare the response dictionary</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-106"><a href="#gene_x_function_in_the_context_of_y_as_Z-106"><span class="linenos">106</span></a>    <span class="n">response_dictionary</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-107"><a href="#gene_x_function_in_the_context_of_y_as_Z-107"><span class="linenos">107</span></a>    <span class="n">assistant_message</span> <span class="o">=</span> <span class="n">response_dictionary</span><span class="p">[</span><span class="s1">&#39;choices&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;message&#39;</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-108"><a href="#gene_x_function_in_the_context_of_y_as_Z-108"><span class="linenos">108</span></a>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-109"><a href="#gene_x_function_in_the_context_of_y_as_Z-109"><span class="linenos">109</span></a>    <span class="c1"># Return the response and optionally the duration</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-110"><a href="#gene_x_function_in_the_context_of_y_as_Z-110"><span class="linenos">110</span></a>    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;response&quot;</span><span class="p">:</span> <span class="n">response_dictionary</span><span class="p">}</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-111"><a href="#gene_x_function_in_the_context_of_y_as_Z-111"><span class="linenos">111</span></a>    <span class="k">if</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-112"><a href="#gene_x_function_in_the_context_of_y_as_Z-112"><span class="linenos">112</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-113"><a href="#gene_x_function_in_the_context_of_y_as_Z-113"><span class="linenos">113</span></a>    <span class="k">elif</span> <span class="n">return_format</span> <span class="o">==</span> <span class="s2">&quot;text_concise&quot;</span><span class="p">:</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-114"><a href="#gene_x_function_in_the_context_of_y_as_Z-114"><span class="linenos">114</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;response&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assistant_message</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;/think&gt;&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-115"><a href="#gene_x_function_in_the_context_of_y_as_Z-115"><span class="linenos">115</span></a>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-116"><a href="#gene_x_function_in_the_context_of_y_as_Z-116"><span class="linenos">116</span></a>    <span class="k">if</span> <span class="n">include_duration</span><span class="p">:</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-117"><a href="#gene_x_function_in_the_context_of_y_as_Z-117"><span class="linenos">117</span></a>        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;duration&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">duration</span>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-118"><a href="#gene_x_function_in_the_context_of_y_as_Z-118"><span class="linenos">118</span></a>
+</span><span id="gene_x_function_in_the_context_of_y_as_Z-119"><a href="#gene_x_function_in_the_context_of_y_as_Z-119"><span class="linenos">119</span></a>    <span class="k">return</span> <span class="n">result</span>
 </span></pre></div>
 
 
@@ -368,6 +426,88 @@
 
 <p>Returns:
     dict: A dictionary containing the response and optionally the duration.</p>
+</div>
+
+
+                </section>
+                <section id="prioritize_genes">
+                            <input id="prioritize_genes-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">prioritize_genes</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">gene_list</span>,</span><span class="param">	<span class="n">hf_token</span>,</span><span class="param">	<span class="n">n</span><span class="o">=</span><span class="mi">20</span>,</span><span class="param">	<span class="n">llm_model</span><span class="o">=</span><span class="s1">&#39;deepseek-ai/DeepSeek-R1-Distill-Qwen-14B&#39;</span>,</span><span class="param">	<span class="n">max_tokens</span><span class="o">=</span><span class="mi">2000</span></span><span class="return-annotation">):</span></span>
+
+                <label class="view-source-button" for="prioritize_genes-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#prioritize_genes"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="prioritize_genes-121"><a href="#prioritize_genes-121"><span class="linenos">121</span></a><span class="k">def</span><span class="w"> </span><span class="nf">prioritize_genes</span><span class="p">(</span><span class="n">gene_list</span><span class="p">,</span> <span class="n">hf_token</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="n">llm_model</span><span class="o">=</span><span class="s2">&quot;deepseek-ai/DeepSeek-R1-Distill-Qwen-14B&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">2000</span><span class="p">):</span>
+</span><span id="prioritize_genes-122"><a href="#prioritize_genes-122"><span class="linenos">122</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="prioritize_genes-123"><a href="#prioritize_genes-123"><span class="linenos">123</span></a><span class="sd">    Retrieve the top 20 genes and their descriptions in the context of T cell biology using a Hugging Face model.</span>
+</span><span id="prioritize_genes-124"><a href="#prioritize_genes-124"><span class="linenos">124</span></a>
+</span><span id="prioritize_genes-125"><a href="#prioritize_genes-125"><span class="linenos">125</span></a><span class="sd">    Args:</span>
+</span><span id="prioritize_genes-126"><a href="#prioritize_genes-126"><span class="linenos">126</span></a><span class="sd">        gene_list (list of str): A list of gene names to be processed.</span>
+</span><span id="prioritize_genes-127"><a href="#prioritize_genes-127"><span class="linenos">127</span></a><span class="sd">        hf_token (str): The Hugging Face API token for authentication.</span>
+</span><span id="prioritize_genes-128"><a href="#prioritize_genes-128"><span class="linenos">128</span></a><span class="sd">        model (str, optional): The model to be used for inference. Defaults to &quot;deepseek-ai/DeepSeek-R1-Distill-Qwen-14B&quot;.</span>
+</span><span id="prioritize_genes-129"><a href="#prioritize_genes-129"><span class="linenos">129</span></a><span class="sd">        max_tokens (int, optional): The maximum number of tokens to be generated by the model. Defaults to 2000.</span>
+</span><span id="prioritize_genes-130"><a href="#prioritize_genes-130"><span class="linenos">130</span></a>
+</span><span id="prioritize_genes-131"><a href="#prioritize_genes-131"><span class="linenos">131</span></a><span class="sd">    Returns:</span>
+</span><span id="prioritize_genes-132"><a href="#prioritize_genes-132"><span class="linenos">132</span></a><span class="sd">        tuple: A tuple containing:</span>
+</span><span id="prioritize_genes-133"><a href="#prioritize_genes-133"><span class="linenos">133</span></a><span class="sd">            - full_reason_process (str): The full response content from the model.</span>
+</span><span id="prioritize_genes-134"><a href="#prioritize_genes-134"><span class="linenos">134</span></a><span class="sd">            - top_20_genes_dict (dict): A dictionary containing the top 20 genes as keys and their descriptions as values.</span>
+</span><span id="prioritize_genes-135"><a href="#prioritize_genes-135"><span class="linenos">135</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="prioritize_genes-136"><a href="#prioritize_genes-136"><span class="linenos">136</span></a>    <span class="c1"># Convert to text</span>
+</span><span id="prioritize_genes-137"><a href="#prioritize_genes-137"><span class="linenos">137</span></a>    <span class="n">gene_list_character</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">gene</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">gene_list</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span>
+</span><span id="prioritize_genes-138"><a href="#prioritize_genes-138"><span class="linenos">138</span></a>
+</span><span id="prioritize_genes-139"><a href="#prioritize_genes-139"><span class="linenos">139</span></a>    <span class="c1"># Perform the huggingface inference</span>
+</span><span id="prioritize_genes-140"><a href="#prioritize_genes-140"><span class="linenos">140</span></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">huggingface_hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">InferenceClient</span>
+</span><span id="prioritize_genes-141"><a href="#prioritize_genes-141"><span class="linenos">141</span></a>
+</span><span id="prioritize_genes-142"><a href="#prioritize_genes-142"><span class="linenos">142</span></a>    <span class="n">client</span> <span class="o">=</span> <span class="n">InferenceClient</span><span class="p">(</span>
+</span><span id="prioritize_genes-143"><a href="#prioritize_genes-143"><span class="linenos">143</span></a>        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;novita&quot;</span><span class="p">,</span>
+</span><span id="prioritize_genes-144"><a href="#prioritize_genes-144"><span class="linenos">144</span></a>        <span class="n">api_key</span><span class="o">=</span><span class="n">hf_token</span><span class="p">,</span>
+</span><span id="prioritize_genes-145"><a href="#prioritize_genes-145"><span class="linenos">145</span></a>    <span class="p">)</span>
+</span><span id="prioritize_genes-146"><a href="#prioritize_genes-146"><span class="linenos">146</span></a>
+</span><span id="prioritize_genes-147"><a href="#prioritize_genes-147"><span class="linenos">147</span></a>    <span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="prioritize_genes-148"><a href="#prioritize_genes-148"><span class="linenos">148</span></a>        <span class="p">{</span>
+</span><span id="prioritize_genes-149"><a href="#prioritize_genes-149"><span class="linenos">149</span></a>            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+</span><span id="prioritize_genes-150"><a href="#prioritize_genes-150"><span class="linenos">150</span></a>            <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Given the context of T cell biology, go through all of the genes below and return the top </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> genes in the format of gene - function: &quot;</span> <span class="o">+</span> <span class="n">gene_list_character</span>
+</span><span id="prioritize_genes-151"><a href="#prioritize_genes-151"><span class="linenos">151</span></a>        <span class="p">}</span>
+</span><span id="prioritize_genes-152"><a href="#prioritize_genes-152"><span class="linenos">152</span></a>    <span class="p">]</span>
+</span><span id="prioritize_genes-153"><a href="#prioritize_genes-153"><span class="linenos">153</span></a>
+</span><span id="prioritize_genes-154"><a href="#prioritize_genes-154"><span class="linenos">154</span></a>    <span class="n">completion</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="prioritize_genes-155"><a href="#prioritize_genes-155"><span class="linenos">155</span></a>        <span class="n">model</span><span class="o">=</span><span class="n">llm_model</span><span class="p">,</span> 
+</span><span id="prioritize_genes-156"><a href="#prioritize_genes-156"><span class="linenos">156</span></a>        <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span> 
+</span><span id="prioritize_genes-157"><a href="#prioritize_genes-157"><span class="linenos">157</span></a>        <span class="n">max_tokens</span><span class="o">=</span><span class="n">max_tokens</span><span class="p">,</span>
+</span><span id="prioritize_genes-158"><a href="#prioritize_genes-158"><span class="linenos">158</span></a>    <span class="p">)</span>
+</span><span id="prioritize_genes-159"><a href="#prioritize_genes-159"><span class="linenos">159</span></a>
+</span><span id="prioritize_genes-160"><a href="#prioritize_genes-160"><span class="linenos">160</span></a>    <span class="n">full_reason_process</span> <span class="o">=</span> <span class="n">completion</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span>
+</span><span id="prioritize_genes-161"><a href="#prioritize_genes-161"><span class="linenos">161</span></a> 
+</span><span id="prioritize_genes-162"><a href="#prioritize_genes-162"><span class="linenos">162</span></a>    <span class="c1"># Output the response</span>
+</span><span id="prioritize_genes-163"><a href="#prioritize_genes-163"><span class="linenos">163</span></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">re</span> 
+</span><span id="prioritize_genes-164"><a href="#prioritize_genes-164"><span class="linenos">164</span></a>
+</span><span id="prioritize_genes-165"><a href="#prioritize_genes-165"><span class="linenos">165</span></a>    <span class="c1"># Extract the top 20 genes and their descriptions using regex</span>
+</span><span id="prioritize_genes-166"><a href="#prioritize_genes-166"><span class="linenos">166</span></a>    <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;\*\*(\w+)\*\* - ([^\n]+)&#39;</span>
+</span><span id="prioritize_genes-167"><a href="#prioritize_genes-167"><span class="linenos">167</span></a>    <span class="n">top_20_genes_with_descriptions</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">response_content</span><span class="p">)</span>
+</span><span id="prioritize_genes-168"><a href="#prioritize_genes-168"><span class="linenos">168</span></a>    
+</span><span id="prioritize_genes-169"><a href="#prioritize_genes-169"><span class="linenos">169</span></a>    <span class="c1"># Convert the list of tuples to a dictionary</span>
+</span><span id="prioritize_genes-170"><a href="#prioritize_genes-170"><span class="linenos">170</span></a>    <span class="n">top_20_genes_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">gene</span><span class="p">:</span> <span class="n">description</span> <span class="k">for</span> <span class="n">gene</span><span class="p">,</span> <span class="n">description</span> <span class="ow">in</span> <span class="n">top_20_genes_with_descriptions</span><span class="p">}</span>
+</span><span id="prioritize_genes-171"><a href="#prioritize_genes-171"><span class="linenos">171</span></a>    
+</span><span id="prioritize_genes-172"><a href="#prioritize_genes-172"><span class="linenos">172</span></a>    <span class="k">return</span> <span class="n">full_reason_process</span><span class="p">,</span> <span class="n">top_20_genes_dict</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Retrieve the top 20 genes and their descriptions in the context of T cell biology using a Hugging Face model.</p>
+
+<p>Args:
+    gene_list (list of str): A list of gene names to be processed.
+    hf_token (str): The Hugging Face API token for authentication.
+    model (str, optional): The model to be used for inference. Defaults to "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B".
+    max_tokens (int, optional): The maximum number of tokens to be generated by the model. Defaults to 2000.</p>
+
+<p>Returns:
+    tuple: A tuple containing:
+        - full_reason_process (str): The full response content from the model.
+        - top_20_genes_dict (dict): A dictionary containing the top 20 genes as keys and their descriptions as values.</p>
 </div>
 
 
