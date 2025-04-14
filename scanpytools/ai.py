@@ -117,99 +117,118 @@ def gene_x_function_in_the_context_of_y_as_Z(gene, context, role="immunologist",
 
     return result
 
-def prioritize_genes(gene_list, context, hf_token, n=20, provider = "hf-inference", llm_model="deepseek-ai/DeepSeek-R1-Distill-Qwen-14B", max_tokens=2000):
+def prioritize_genes(
+    gene_list,
+    context,
+    api_token,
+    n=20,
+    platform="huggingface",
+    provider="hf-inference",
+    llm_model="deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+    max_tokens=2000,
+    temperature=0.6
+):
     """
     Retrieve and rank the top N genes and their descriptions based on their relevance to a specific biological context
-    using a Hugging Face inference API.
+    using various LLM platforms and providers.
 
     Args:
         gene_list (list of str): A list of gene names to be prioritized and analyzed.
-        context (str): The biological context to consider when ranking genes (e.g., "T cell activation", 
-                      "inflammation", "hyperbolic").
-        hf_token (str): The Hugging Face API token for authentication.
+        context (str): The biological context to consider when ranking genes.
+        api_token (str): The API token for authentication (used for all platforms).
         n (int, optional): The number of top genes to retrieve. Defaults to 20.
-        provider (str): The Hugging Face inference API provider (e.g., "hf-inference", 
-                       "novita", "huggingface").
-        llm_model (str, optional): The language model to be used for inference. 
-                                 Defaults to "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B".
+        platform (str): The platform to use ("huggingface", "google", "openai").
+        provider (str): The provider for the platform (e.g., "hf-inference" for Hugging Face).
+        llm_model (str, optional): The language model to be used for inference.
         max_tokens (int, optional): The maximum number of tokens in the model's response. Defaults to 2000.
+        temperature (float, optional): The temperature for the model's response. Defaults to 0.6.
 
     Returns:
         tuple: A tuple containing:
-            - full_reason_process (str): The complete response from the model, including reasoning and rankings.
-            - top_20_genes_dict (dict): A dictionary mapping the top N ranked genes to their functional descriptions
-                                      in the given context.
-            - summary_match (list): A list containing a functional profile summary of the selected genes,
-                                  explaining their collective role in the given context.
-
-    Example:
-        >>> genes = ["CD4", "CD8A", "IFNG", "IL2"]
-        >>> response, top_genes, summary = prioritize_genes(
-        ...     genes, 
-        ...     "T cell activation", 
-        ...     "hf_token",
-        ...     provider="huggingface"
-        ... )
-        >>> print(top_genes)
-        {'CD4': 'T cell co-receptor essential for helper T cell function', ...}
+            - full_reason_process (str): The complete response from the model.
+            - top_genes_dict (dict): A dictionary mapping the top N ranked genes to their descriptions.
+            - summary_match (list): A concise summary of the cell functional profile.
+            - cell_type_match (str): A short description of the cell type.
     """
-    # Convert to text
-    gene_list_character = " ".join([gene for gene in gene_list]) + " "
-
-    # Perform the huggingface inference
-    from huggingface_hub import InferenceClient
-
-    client = InferenceClient(
-        provider=provider,
-        api_key=hf_token,
+    # Consolidate the prompt
+    gene_list_character = " ".join(gene_list) + " "
+    prompt = (
+        f"Given the context of {context}, go through all of the genes below and return the top {n} genes "
+        "in the format of **gene** - function (Note that the gene should be strictly from the input). "
+        "Additionally, provide a concise summary of the cell functional profile enclosed ONLY between <<<SUMMARY_START>>> and <<<SUMMARY_END>>> markers, with no extra text before or after the markers. "
+        "Finally, provide 3 to 5 words as if you are to refer the cell type in Nature Immunology, enclosed between <<<CELL_TYPE_START>>> and <<<CELL_TYPE_END>>> markers. "
+        f"{gene_list_character}"
     )
 
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                f"Given the context of {context}, go through all of the genes below and return the top {n} genes "
-                "in the format of **gene** - function (Note that the gene should be strictly from the input). Finally, provide a concise summary of the cell functional profile enclosed ONLY between <<<SUMMARY_START>>> and <<<SUMMARY_END>>> markers, with no extra text before or after the markers." + 
-                gene_list_character
-            )
-        }
-    ]
+    # Initialize variables
+    full_reason_process = ""
+    top_genes_dict = {}
+    summary_match = []
+    cell_type_match = ""
 
-    completion = client.chat.completions.create(
-        model=llm_model, 
-        messages=messages, 
-        max_tokens=max_tokens,
-        top_p = 0.95,
-        temperature = 0.6
-    )
+    if platform == "huggingface":
+        # Hugging Face Inference API
+        from huggingface_hub import InferenceClient
+        client = InferenceClient(provider=provider, api_key=api_token)
+        messages = [{"role": "user", "content": prompt}]
+        completion = client.chat.completions.create(
+            model=llm_model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        full_reason_process = completion.choices[0].message.content
 
-    full_reason_process = completion.choices[0].message.content
+    elif platform == "google":
+        # Google Gemini API
+        from google import genai
+        client = genai.Client(api_key=api_token)
+        response = client.models.generate_content(
+            model=llm_model,
+            contents=prompt,
+        )
+        full_reason_process = response.result
 
-    # Get the results after </think> tag
-    results = full_reason_process.split("</think>")[-1]
+    elif platform == "openai":
+        # OpenAI GPT-4 API
+        import openai
+        openai.api_key = api_token
+        response = openai.Completion.create(
+            model=llm_model,
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        full_reason_process = response.choices[0].text
 
-    # Output the response
+    else:
+        raise ValueError(f"Unsupported platform: {platform}")
+
+    # Extract top genes, summary, and cell type
     import re
-
     try:
         # Extract the top N genes and their descriptions using regex
         pattern = r'\*\*([\w()]+)\*\* - ([^\n]+)'
-        top_20_genes_with_descriptions = re.findall(pattern, results)
-        
-        # Convert the list of tuples to a dictionary
-        top_20_genes_dict = {gene: description for gene, description in top_20_genes_with_descriptions}
+        top_genes_with_descriptions = re.findall(pattern, full_reason_process)
+        top_genes_dict = {gene: description for gene, description in top_genes_with_descriptions}
     except Exception as e:
         print(f"An error occurred while extracting top {n} genes: {e}")
-        top_20_genes_dict = {}
-    
-    # Output the summary
-    try:
-        summary_pattern = r'<<<SUMMARY_START>>>(.*?)<<<SUMMARY_END>>>'
-        summary_match = re.findall(summary_pattern, results, re.DOTALL)
-        summary_match = summary_match[0].strip()
-    except Exception as e:
-        print(f"An error occurred while extracting summary: {e}")    
-        summary_match = []
 
-    return full_reason_process, top_20_genes_dict, summary_match
+    try:
+        # Extract the summary
+        summary_pattern = r'<<<SUMMARY_START>>>(.*?)<<<SUMMARY_END>>>'
+        summary_match = re.findall(summary_pattern, full_reason_process, re.DOTALL)
+        summary_match = summary_match[0].strip() if summary_match else ""
+    except Exception as e:
+        print(f"An error occurred while extracting summary: {e}")
+
+    try:
+        # Extract the cell type
+        cell_type_pattern = r'<<<CELL_TYPE_START>>>(.*?)<<<CELL_TYPE_END>>>'
+        cell_type_match = re.findall(cell_type_pattern, full_reason_process, re.DOTALL)
+        cell_type_match = cell_type_match[0].strip() if cell_type_match else ""
+    except Exception as e:
+        print(f"An error occurred while extracting cell type: {e}")
+
+    return full_reason_process, top_genes_dict, summary_match, cell_type_match
 
