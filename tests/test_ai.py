@@ -30,6 +30,8 @@ class TestPrioritizeGenes(unittest.TestCase):
         self.n = 20
         self.temperature = 0.6
         self.max_tokens = 2000
+        
+        # Load API keys from environment variables        
         self.openai_key = os.getenv("OPENAI_API_KEY")
         self.gemini_key = os.getenv("GEMINI_API_KEY")
         self.hf_key = os.getenv("HF_TOKEN")
@@ -62,7 +64,7 @@ class TestPrioritizeGenes(unittest.TestCase):
         result = sctl.ai.prioritize_genes(
             gene_list=self.gene_list,
             context=self.context,
-            api_token=gemini_key,
+            api_token=self.gemini_key,
             n=self.n,
             platform="google",
             provider="google",
