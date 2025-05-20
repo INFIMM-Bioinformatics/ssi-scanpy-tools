@@ -11,7 +11,7 @@ def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
     ----------
     adata : AnnData
         Annotated data matrix containing clustering results at different resolutions.
-        Must have cluster annotations in .obs with names formatted as '{prefix}_{resolution}'.
+        Columns starting with ``{prefix}_`` are automatically detected as resolution columns.
     prefix : str, optional (default: 'leiden')
         The prefix used in the column names for clustering results.
     return_fig : bool, optional (default: False)
@@ -22,15 +22,27 @@ def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
     plotly.graph_objects.Figure or None
         Returns the figure object if return_fig=True, otherwise displays the plot and returns None.
     """
-    # Extract the cluster identities for each resolution
-    resolutions = [round(x * 0.1, 1) for x in range(11)]
-    cluster_data = {f'{prefix}_{res}': adata.obs[f'{prefix}_{res}'] for res in resolutions}
+    # Determine available resolution columns dynamically
+    resolution_cols = [c for c in adata.obs.columns if c.startswith(f"{prefix}_")]
+    if len(resolution_cols) < 2:
+        raise ValueError(
+            f"At least two '{prefix}_*' columns are required in adata.obs"
+        )
+    # Sort columns by the numeric part after the prefix if possible
+    def _res_key(col: str):
+        try:
+            return float(col.split(f"{prefix}_", 1)[1])
+        except Exception:
+            return col
+
+    resolution_cols = sorted(resolution_cols, key=_res_key)
+    cluster_data = {res: adata.obs[res] for res in resolution_cols}
 
     # Create a DataFrame to store the transitions
     transitions = []
-    for i in range(len(resolutions) - 1):
-        res1 = f'{prefix}_{resolutions[i]}'
-        res2 = f'{prefix}_{resolutions[i + 1]}'
+    for i in range(len(resolution_cols) - 1):
+        res1 = resolution_cols[i]
+        res2 = resolution_cols[i + 1]
         for cluster1 in cluster_data[res1].unique():
             for cluster2 in cluster_data[res2].unique():
                 count = ((cluster_data[res1] == cluster1) & (cluster_data[res2] == cluster2)).sum()
@@ -41,10 +53,14 @@ def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
     transitions_df = pd.DataFrame(transitions, columns=['source_res', 'source_cluster', 'target_res', 'target_cluster', 'count'])
 
     # Create unique labels for nodes
-    unique_labels = sorted(set([f'{res}_{cluster}' for res, cluster, _, _, _ in transitions] + 
-                               [f'{res}_{cluster}' for _, _, res, cluster, _ in transitions]))
+    unique_labels = sorted(
+        set(
+            [f"{res}_{cluster}" for res, cluster, _, _, _ in transitions]
+            + [f"{res}_{cluster}" for _, _, res, cluster, _ in transitions]
+        )
+    )
 
-    unique_labels_show = [label.split('_')[2] for label in unique_labels]
+    unique_labels_show = [label.rsplit("_", 1)[1] for label in unique_labels]
 
     # Create a mapping from label to index
     label_to_index = {label: i for i, label in enumerate(unique_labels)}
@@ -67,16 +83,18 @@ def cluster_sankey_diagram(adata, prefix="leiden", return_fig=False):
 
     # Add annotations for resolutions
     annotations = []
-    for i, res in enumerate(resolutions):
-        annotations.append(dict(
-            x=i / (len(resolutions) - 1),
-            y=1.1,
-            text=f'{res}',
-            showarrow=False,
-            xref='paper',
-            yref='paper',
-            font=dict(size=12)
-        ))
+    for i, res in enumerate(resolution_cols):
+        annotations.append(
+            dict(
+                x=i / (len(resolution_cols) - 1),
+                y=1.1,
+                text=f"{res.split('_')[1]}",
+                showarrow=False,
+                xref='paper',
+                yref='paper',
+                font=dict(size=12)
+            )
+        )
 
     fig.update_layout(
         title_text="Sankey Diagram of Cluster Identity Transitions in Different Resolutions",
