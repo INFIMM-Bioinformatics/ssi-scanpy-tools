@@ -135,7 +135,11 @@ def ensemble_identify_cluster_markers(
     >>> print(markers.head())
     """
     # Make a copy and subset to HVG
-    adata_copy = adata[:,adata.var["highly_variable"]].copy()
+    # Check if 'highly_variable' exists, if not, compute it
+    if "highly_variable" not in adata.var.columns:
+        print("Column 'highly_variable' not found in adata.var. Running sc.pp.highly_variable_genes...")
+        sc.pp.highly_variable_genes(adata)
+    adata_copy = adata[:, adata.var["highly_variable"]].copy()
     print(f"Running analysis on {adata_copy.n_vars} highly variable genes")
     
     # Initialize results dictionary
@@ -234,3 +238,286 @@ def ensemble_identify_cluster_markers(
     final_df = final_df.sort_values([var_cluster, 'median_rank', "mean_rank"])
     
     return final_df
+
+def perform_subclustering_analysis(adata, group_name, project_name, pattern="leiden_", 
+                                   abundance_cutoff=0.05, n_markers=50,
+                                   min_resolution=None, max_resolution=None,
+                                   gemini_token=None, results_base_path=None):
+    """
+    Perform subclustering analysis on a specific group with AI-powered marker interpretation.
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        The input AnnData object
+    group_name : str
+        The group to analyze (e.g., "vacc")
+    project_name : str
+        The project name for organizing results (e.g., "VITvacc")
+    pattern : str, default "leiden_"
+        Pattern to match clustering resolution columns
+    abundance_cutoff : float, default 0.05
+        Minimum fraction of cells required for a cluster to be analyzed
+    n_markers : int, default 50
+        Number of top markers to extract per cluster
+    min_resolution : float, optional
+        Minimum resolution to include (e.g., 0.1)
+    max_resolution : float, optional
+        Maximum resolution to include (e.g., 0.4)
+    gemini_token : str, optional
+        Gemini API token. If None, will try to load from environment
+    results_base_path : str, optional
+        Base path for results. If None, will use config
+    
+    Returns:
+    --------
+    dict : Dictionary containing analysis results and metadata
+    """
+    import numpy as np
+    import pandas as pd
+    import scanpy as sc
+    import scanpytools as sctl
+    import os
+    import shutil
+    from dotenv import load_dotenv
+    from google.api_core import retry
+    from google import genai
+    from datetime import datetime
+    
+    # Setup results path
+    if results_base_path is None:
+        results_path = config.get_results_path(project_name, 'subclustering')
+    else:
+        results_path = results_base_path
+    
+    # Setup logging
+    log_file_path = os.path.join(results_path, f"subclustering_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    
+    def log_print(message):
+        """Print to console and write to log file"""
+        print(message)
+        with open(log_file_path, "a", encoding="utf-8") as log_file:
+            log_file.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
+    
+    # Create results directory if it doesn't exist
+    os.makedirs(results_path, exist_ok=True)
+    
+    # Initialize log file
+    log_print(f"=== Starting Subclustering Analysis ===")
+    log_print(f"Project: {project_name}")
+    log_print(f"Group: {group_name}")
+    log_print(f"Pattern: {pattern}")
+    log_print(f"Abundance cutoff: {abundance_cutoff}")
+    log_print(f"Number of markers: {n_markers}")
+    log_print(f"Resolution range: [{min_resolution}, {max_resolution}]")
+    log_print(f"Results path: {results_path}")
+    log_print(f"Log file: {log_file_path}")
+    
+    # Clean existing results (except the log file we just created)
+    if os.path.exists(results_path):
+        for item in os.listdir(results_path):
+            item_path = os.path.join(results_path, item)
+            if item_path != log_file_path:  # Don't delete the log file
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
+        log_print(f"Cleaned existing results directory (preserved log file)")
+    else:
+        log_print(f"Created new results directory: {results_path}")
+    
+    # Setup AI configuration
+    if gemini_token is None:
+        load_dotenv()
+        gemini_token = os.getenv("GEMINI_API_KEY")
+    
+    platform = "google"
+    model = "gemini-2.5-flash-preview-05-20"
+    max_tokens = 4000
+    
+    log_print(f"AI Configuration: {platform}, {model}, max_tokens={max_tokens}")
+    
+    # Setup retry for Gemini API
+    is_retriable = lambda e: (isinstance(e, genai.errors.APIError) and e.code in {429, 503})
+    genai.models.Models.generate_content = retry.Retry(
+        predicate=is_retriable)(genai.models.Models.generate_content)
+    
+    # Filter data by group
+    adata_group = adata[adata.obs["group"] == group_name].copy()
+    
+    log_print(f"1. Perform subclustering analysis for {group_name} (project: {project_name}): \n\n" + str(adata_group) + "\n")
+    log_print("Number of highly variable genes: " + str(np.sum(adata_group.var["highly_variable"] == True)))
+    
+    # Find pattern clusters
+    log_print(f"2. Analyze resolution with pattern: {pattern}\n")
+    pattern_clusters = [col for col in adata_group.obs.columns if pattern in col]
+    
+    # Filter by resolution range if specified
+    if min_resolution is not None or max_resolution is not None:
+        filtered_clusters = []
+        for col in pattern_clusters:
+            try:
+                # Extract resolution value from column name (e.g., "leiden_0.1" -> 0.1)
+                resolution_str = col.replace(pattern, "")
+                resolution_val = float(resolution_str)
+                
+                # Check if within range
+                if min_resolution is not None and resolution_val < min_resolution:
+                    continue
+                if max_resolution is not None and resolution_val > max_resolution:
+                    continue
+                    
+                filtered_clusters.append(col)
+            except ValueError:
+                # Skip columns that don't have numeric resolution values
+                log_print(f"Warning: Could not parse resolution from {col}, skipping...")
+                continue
+        
+        pattern_clusters = filtered_clusters
+        log_print(f"Filtered to resolution range [{min_resolution}, {max_resolution}]: {pattern_clusters}")
+    
+    log_print("Columns matching pattern: " + str(pattern_clusters) + "\n")
+    
+    results_summary = {
+        'project': project_name,
+        'group': group_name,
+        'total_cells': len(adata_group),
+        'resolutions_analyzed': [],
+        'clusters_analyzed': {},
+        'files_generated': [log_file_path]  # Include log file in generated files
+    }
+    
+    # Loop over all filtered pattern_clusters
+    for one_resolution in pattern_clusters:
+        log_print(f"\n=== Processing resolution: {one_resolution} ===")
+        
+        # Find abundant clusters
+        one_resolution_clusters = adata_group.obs[one_resolution].value_counts(normalize=True)[lambda x: x > abundance_cutoff].index.tolist()
+        
+        if len(one_resolution_clusters) <= 1:
+            log_print(f"Not enough abundant clusters found for {one_resolution} (need >1), skipping...")
+            continue
+        
+        results_summary['resolutions_analyzed'].append(one_resolution)
+        results_summary['clusters_analyzed'][one_resolution] = one_resolution_clusters
+        
+        # Subset data to abundant clusters
+        adata_group_oneres_abundant = adata_group[adata_group.obs[one_resolution].isin(one_resolution_clusters)].copy()
+        
+        # Perform highly variable gene selection
+        sc.pp.highly_variable_genes(adata_group_oneres_abundant)
+        log_print("Number of highly variable genes: " + str(np.sum(adata_group_oneres_abundant.var["highly_variable"] == True)) + "\n")
+        
+        log_print(f"3. Analyze resolution {one_resolution}: " + ", ".join(map(str, one_resolution_clusters)) + "\n")
+        
+        # Identify cluster markers
+        DEG_df = sctl.stat.ensemble_identify_cluster_markers(
+            adata_group_oneres_abundant, 
+            var_cluster=one_resolution,
+            methods=["wilcoxon", "t-test_overestim_var", "t-test"]
+        )
+        
+        # Save DEG results
+        resolution_results_path = config.get_results_path(project_name, 'subclustering', one_resolution)
+        deg_file = os.path.join(resolution_results_path, "DEG.csv")
+        DEG_df.to_csv(deg_file, index=False)
+        results_summary['files_generated'].append(deg_file)
+        
+        # Analyze each cluster
+        for one_resolution_one_cluster in one_resolution_clusters:
+            log_print(f"Processing cluster {one_resolution_one_cluster} in resolution {one_resolution}")
+            
+            # Get top markers for this cluster
+            markers_one_resolution_one_cluster = \
+                DEG_df[DEG_df[one_resolution] == one_resolution_one_cluster].\
+                sort_values("median_rank").\
+                head(n_markers)["names"].tolist()
+            
+            if not markers_one_resolution_one_cluster:
+                log_print(f"No markers found for cluster {one_resolution_one_cluster}, skipping...")
+                continue
+            
+            # AI analysis
+            try:
+                ai_result = sctl.ai.prioritize_genes(
+                    markers_one_resolution_one_cluster, 
+                    context="Vaccine induced T cells", 
+                    api_token=gemini_token, 
+                    n=20,
+                    platform=platform,
+                    llm_model=model, 
+                    max_tokens=max_tokens
+                )
+                
+                # Unpack AI result
+                ai_result_full, ai_result_top_g, ai_result_summary_ai, ai_result_celltype = ai_result
+                
+                # Save AI results
+                ai_file = os.path.join(resolution_results_path, f"cluster_{one_resolution_one_cluster}_ai_inference.txt")
+                with open(ai_file, "w") as file:
+                    file.write(ai_result_full)
+                results_summary['files_generated'].append(ai_file)
+                
+                # Save gene info
+                ai_result_top_g_df = pd.DataFrame(
+                    list(ai_result_top_g.items()), 
+                    columns=['Gene', 'Description']
+                )
+                gene_info_file = os.path.join(resolution_results_path, f"cluster_{one_resolution_one_cluster}_g_info.csv")
+                ai_result_top_g_df.to_csv(gene_info_file, index=False)
+                results_summary['files_generated'].append(gene_info_file)
+                
+                log_print(f"AI analysis completed for cluster {one_resolution_one_cluster}")
+                
+            except Exception as e:
+                log_print(f"AI analysis failed for cluster {one_resolution_one_cluster}: {str(e)}")
+                continue
+            
+            # Generate dotplot
+            try:
+                markers_ordered = [gene for gene in adata_group_oneres_abundant.var.sort_values(by='means', ascending=False).index if gene in markers_one_resolution_one_cluster]
+                
+                sc.settings.figdir = resolution_results_path
+                sc.set_figure_params(dpi=300)
+                
+                sc.pl.dotplot(
+                    adata_group_oneres_abundant,
+                    markers_ordered,
+                    groupby=one_resolution,
+                    swap_axes=True,
+                    title=f"Top {n_markers} markers for cluster {one_resolution_one_cluster} \n (resolution {one_resolution})",
+                    save=f"cluster_{one_resolution_one_cluster}.png",
+                    show=False
+                )
+                
+                # Rename dotplot file
+                old_name = os.path.join(resolution_results_path, f"dotplot_cluster_{one_resolution_one_cluster}.png")
+                new_name = os.path.join(resolution_results_path, f"cluster_{one_resolution_one_cluster}_dotplot.png")
+                if os.path.exists(old_name):
+                    os.rename(old_name, new_name)
+                    results_summary['files_generated'].append(new_name)
+                
+                log_print(f"Dotplot generated for cluster {one_resolution_one_cluster}")
+                
+            except Exception as e:
+                log_print(f"Dotplot generation failed for cluster {one_resolution_one_cluster}: {str(e)}")
+                continue
+    
+    log_print(f"\n=== Analysis Complete ===")
+    log_print(f"Project: {project_name}")
+    log_print(f"Resolutions analyzed: {len(results_summary['resolutions_analyzed'])}")
+    log_print(f"Total files generated: {len(results_summary['files_generated'])}")
+    
+    return results_summary
+
+# Usage example:
+results = perform_subclustering_analysis(
+    adata=adata,
+    group_name="vacc",
+    project_name="VITvacc",  # Now parameterized
+    pattern="leiden_",
+    abundance_cutoff=0.05,
+    n_markers=50,
+    min_resolution=0.2,  # Only analyze resolutions >= 0.1
+    max_resolution=0.4   # Only analyze resolutions <= 0.4
+)
