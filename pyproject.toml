@@ -15,7 +15,12 @@ dependencies = [
     "pandas",
     "matplotlib",
     "seaborn",
-    "plotly"
+    "plotly",
+    "torch",
+    "google-generativeai",
+    "openai",
+    "huggingface-hub",
+    "python-dotenv"
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -29,6 +34,13 @@ dev = [
 
 doc = [
     "pdoc"  # Using pdoc instead of pdoc3
+]
+
+ai = [
+    "google-generativeai",
+    "openai", 
+    "huggingface-hub",
+    "torch"
 ]
 
 [tool.setuptools]
