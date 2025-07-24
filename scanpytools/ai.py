@@ -154,7 +154,7 @@ def prioritize_genes(
     gene_list_character = " ".join(gene_list) + " "
     prompt = (
         f"Given the context of {context}, go through all of the genes below and return the top {n} genes "
-        "in the format of **gene** - function (Note that the gene should be strictly from the input). "
+        "in the format of **gene** - function (Note that the gene should be strictly from the input and in the returned results wrapped between ** and **). "
         "Additionally, provide a concise summary of the cell functional profile enclosed ONLY between <<<SUMMARY_START>>> and <<<SUMMARY_END>>> markers, with no extra text before or after the markers. "
         "Finally, provide 3 to 5 words as if you are to refer the cell type in Nature Immunology, enclosed between <<<CELL_TYPE_START>>> and <<<CELL_TYPE_END>>> markers. "
         f"{gene_list_character}"
@@ -187,19 +187,17 @@ def prioritize_genes(
             model=llm_model,
             contents=prompt,
         )
-        full_reason_process = response.result
+        full_reason_process = response.text
 
     elif platform == "openai":
-        # OpenAI GPT-4 API
-        import openai
-        openai.api_key = api_token
-        response = openai.Completion.create(
+        # OpenAI GPT-4o API
+        from openai import OpenAI
+        client = OpenAI()
+        response = client.responses.create(
             model=llm_model,
-            prompt=prompt,
-            max_tokens=max_tokens,
-            temperature=temperature
+            input=prompt
         )
-        full_reason_process = response.choices[0].text
+        full_reason_process = response.output_text
 
     else:
         raise ValueError(f"Unsupported platform: {platform}")

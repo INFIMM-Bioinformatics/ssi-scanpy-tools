@@ -19,7 +19,8 @@ Functions:
 
 from .tl import reorder_clusters, leiden_multi_resolution
 from .pl import cluster_sankey_diagram
-from .stat import cluster_distribution, ensemble_identify_cluster_markers
+from .stat import cluster_distribution, ensemble_identify_cluster_markers, perform_subclustering_analysis
+from .ai import is_gpu_available
 
 __version__ = '0.1.0'
 

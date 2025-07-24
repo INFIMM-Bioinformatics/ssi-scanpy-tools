@@ -239,19 +239,18 @@ def ensemble_identify_cluster_markers(
     
     return final_df
 
-def perform_subclustering_analysis(adata, group_name, project_name, pattern="leiden_", 
+def perform_subclustering_analysis(adata, project_name, pattern="leiden_", 
                                    abundance_cutoff=0.05, n_markers=50,
                                    min_resolution=None, max_resolution=None,
+                                   group_column=None, group_filter=None,
                                    gemini_token=None, results_base_path=None):
     """
-    Perform subclustering analysis on a specific group with AI-powered marker interpretation.
+    Perform subclustering analysis with optional group filtering and AI-powered marker interpretation.
     
     Parameters:
     -----------
     adata : AnnData
         The input AnnData object
-    group_name : str
-        The group to analyze (e.g., "vacc")
     project_name : str
         The project name for organizing results (e.g., "VITvacc")
     pattern : str, default "leiden_"
@@ -264,6 +263,11 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
         Minimum resolution to include (e.g., 0.1)
     max_resolution : float, optional
         Maximum resolution to include (e.g., 0.4)
+    group_column : str, optional
+        Column name in adata.obs to use for filtering (e.g., "group", "condition")
+    group_filter : str or list, optional
+        Value(s) to filter by in the group_column. If None, no filtering is applied.
+        Can be a single value (str) or list of values to include.
     gemini_token : str, optional
         Gemini API token. If None, will try to load from environment
     results_base_path : str, optional
@@ -272,6 +276,76 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
     Returns:
     --------
     dict : Dictionary containing analysis results and metadata
+    
+    Examples
+    --------
+    Basic usage with no filtering (analyze all data):
+    
+    >>> import scanpy as sc
+    >>> import scanpytools as sctl
+    >>> adata = sc.datasets.pbmc3k()
+    >>> # Perform clustering at multiple resolutions
+    >>> adata = sctl.tl.leiden_multi_resolution(adata)
+    >>> results = sctl.stat.perform_subclustering_analysis(
+    ...     adata, 
+    ...     project_name="PBMC_analysis",
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Filter by a specific group:
+    
+    >>> # Analyze only vaccinated samples
+    >>> results = sctl.stat.perform_subclustering_analysis(
+    ...     adata, 
+    ...     project_name="VIT_vacc",
+    ...     group_column="treatment", 
+    ...     group_filter="vaccinated",
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Filter by multiple groups:
+    
+    >>> # Analyze both treated and control samples
+    >>> results = sctl.stat.perform_subclustering_analysis(
+    ...     adata, 
+    ...     project_name="VIT_comparison",
+    ...     group_column="condition", 
+    ...     group_filter=["treated", "control"],
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Advanced usage with resolution filtering:
+    
+    >>> # Focus on specific resolution range and cluster pattern
+    >>> results = sctl.stat.perform_subclustering_analysis(
+    ...     adata, 
+    ...     project_name="VIT_detailed",
+    ...     pattern="leiden_",
+    ...     min_resolution=0.1,
+    ...     max_resolution=0.5,
+    ...     abundance_cutoff=0.03,  # Include smaller clusters (3%)
+    ...     n_markers=100,          # Extract more markers per cluster
+    ...     group_column="group", 
+    ...     group_filter="experimental",
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Using custom clustering pattern:
+    
+    >>> # Analyze Louvain clustering instead of Leiden
+    >>> results = sctl.stat.perform_subclustering_analysis(
+    ...     adata, 
+    ...     project_name="VIT_louvain",
+    ...     pattern="louvain_",
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Notes
+    -----
+    - The function requires 'highly_variable' genes to be computed in adata.var
+    - AI analysis requires a valid Gemini API token (set GEMINI_API_KEY environment variable)
+    - Results are organized in subdirectories by resolution (e.g., leiden_0.3/, leiden_0.5/)
+    - Each cluster gets: DEG analysis, AI interpretation, gene info CSV, and dotplot visualization
     """
     import numpy as np
     import pandas as pd
@@ -285,13 +359,13 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
     from datetime import datetime
     
     # Setup results path
-    if results_base_path is None:
-        results_path = config.get_results_path(project_name, 'subclustering')
-    else:
-        results_path = results_base_path
+    # if results_base_path is None:
+    #     results_path = config.get_results_path(project_name, 'subclustering')
+    # else:
+    #     results_path = results_base_path
     
     # Setup logging
-    log_file_path = os.path.join(results_path, f"subclustering_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    log_file_path = os.path.join(results_base_path, f"subclustering_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
     
     def log_print(message):
         """Print to console and write to log file"""
@@ -300,23 +374,24 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
             log_file.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
     
     # Create results directory if it doesn't exist
-    os.makedirs(results_path, exist_ok=True)
+    os.makedirs(results_base_path, exist_ok=True)
     
     # Initialize log file
     log_print(f"=== Starting Subclustering Analysis ===")
     log_print(f"Project: {project_name}")
-    log_print(f"Group: {group_name}")
+    log_print(f"Group column: {group_column}")
+    log_print(f"Group filter: {group_filter}")
     log_print(f"Pattern: {pattern}")
     log_print(f"Abundance cutoff: {abundance_cutoff}")
     log_print(f"Number of markers: {n_markers}")
     log_print(f"Resolution range: [{min_resolution}, {max_resolution}]")
-    log_print(f"Results path: {results_path}")
+    log_print(f"Results path: {results_base_path}")
     log_print(f"Log file: {log_file_path}")
     
     # Clean existing results (except the log file we just created)
-    if os.path.exists(results_path):
-        for item in os.listdir(results_path):
-            item_path = os.path.join(results_path, item)
+    if os.path.exists(results_base_path):
+        for item in os.listdir(results_base_path):
+            item_path = os.path.join(results_base_path, item)
             if item_path != log_file_path:  # Don't delete the log file
                 if os.path.isdir(item_path):
                     shutil.rmtree(item_path)
@@ -324,7 +399,7 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
                     os.remove(item_path)
         log_print(f"Cleaned existing results directory (preserved log file)")
     else:
-        log_print(f"Created new results directory: {results_path}")
+        log_print(f"Created new results directory: {results_base_path}")
     
     # Setup AI configuration
     if gemini_token is None:
@@ -342,10 +417,22 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
     genai.models.Models.generate_content = retry.Retry(
         predicate=is_retriable)(genai.models.Models.generate_content)
     
-    # Filter data by group
-    adata_group = adata[adata.obs["group"] == group_name].copy()
+    # Filter data by group if specified
+    if group_column is not None and group_filter is not None:
+        if isinstance(group_filter, str):
+            adata_group = adata[adata.obs[group_column] == group_filter].copy()
+            filter_description = f"{group_column} == '{group_filter}'"
+        elif isinstance(group_filter, list):
+            adata_group = adata[adata.obs[group_column].isin(group_filter)].copy()
+            filter_description = f"{group_column} in {group_filter}"
+        else:
+            raise ValueError("group_filter must be a string or list of strings")
+        
+        log_print(f"1. Filtered data by {filter_description}: \n\n" + str(adata_group) + "\n")
+    else:
+        adata_group = adata.copy()
+        log_print(f"1. Using all data (no group filtering): \n\n" + str(adata_group) + "\n")
     
-    log_print(f"1. Perform subclustering analysis for {group_name} (project: {project_name}): \n\n" + str(adata_group) + "\n")
     log_print("Number of highly variable genes: " + str(np.sum(adata_group.var["highly_variable"] == True)))
     
     # Find pattern clusters
@@ -380,7 +467,8 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
     
     results_summary = {
         'project': project_name,
-        'group': group_name,
+        'group_column': group_column,
+        'group_filter': group_filter,
         'total_cells': len(adata_group),
         'resolutions_analyzed': [],
         'clusters_analyzed': {},
@@ -392,7 +480,11 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
         log_print(f"\n=== Processing resolution: {one_resolution} ===")
         
         # Find abundant clusters
-        one_resolution_clusters = adata_group.obs[one_resolution].value_counts(normalize=True)[lambda x: x > abundance_cutoff].index.tolist()
+        composition = round(adata_group.obs[one_resolution].value_counts(normalize=True), 2)
+        log_print(f"Cluster abundance for {one_resolution}: (composition: {composition})")
+
+        one_resolution_clusters = composition[composition > abundance_cutoff].index.tolist()
+        log_print(f"Abundant clusters found: {one_resolution_clusters}")
         
         if len(one_resolution_clusters) <= 1:
             log_print(f"Not enough abundant clusters found for {one_resolution} (need >1), skipping...")
@@ -418,7 +510,8 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
         )
         
         # Save DEG results
-        resolution_results_path = config.get_results_path(project_name, 'subclustering', one_resolution)
+        resolution_results_path = os.path.join(results_base_path, one_resolution)
+        os.makedirs(resolution_results_path, exist_ok=True)        
         deg_file = os.path.join(resolution_results_path, "DEG.csv")
         DEG_df.to_csv(deg_file, index=False)
         results_summary['files_generated'].append(deg_file)
@@ -509,15 +602,3 @@ def perform_subclustering_analysis(adata, group_name, project_name, pattern="lei
     log_print(f"Total files generated: {len(results_summary['files_generated'])}")
     
     return results_summary
-
-# Usage example:
-results = perform_subclustering_analysis(
-    adata=adata,
-    group_name="vacc",
-    project_name="VITvacc",  # Now parameterized
-    pattern="leiden_",
-    abundance_cutoff=0.05,
-    n_markers=50,
-    min_resolution=0.2,  # Only analyze resolutions >= 0.1
-    max_resolution=0.4   # Only analyze resolutions <= 0.4
-)
