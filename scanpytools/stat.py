@@ -602,3 +602,359 @@ def perform_subclustering_analysis(adata, project_name, pattern="leiden_",
     log_print(f"Total files generated: {len(results_summary['files_generated'])}")
     
     return results_summary
+
+def perform_celltype_specific_deg_across_resolutions(adata, project_name, 
+                                                    analysis_configs=None,
+                                                    resolutions=[0.1, 0.2, 0.3],
+                                                    pattern="leiden_",
+                                                    n_top_deg=50,
+                                                    min_cells_per_group=10,
+                                                    methods=["wilcoxon", "t-test_overestim_var", "t-test"],
+                                                    results_base_path=None):
+    """
+    Perform cell type-specific differential expression analysis across multiple clustering resolutions and group configurations.
+    
+    This function systematically analyzes differential gene expression across different clustering
+    resolutions and various group/filter combinations. It's designed for comprehensive comparative
+    analysis of cell type-specific responses across experimental conditions.
+    
+    Parameters
+    ----------
+    adata : AnnData
+        The input AnnData object containing processed single-cell data
+    project_name : str
+        The project name for organizing results (e.g., "VITINFECT")
+    analysis_configs : list of dict, optional
+        List of analysis configurations. Each dict should contain:
+        - 'group_var': Main grouping variable for DEG analysis
+        - 'filter_var': Variable to filter on (optional, can be None)
+        - 'filter_value': Value to filter for (required if filter_var is specified)
+        If None, will use default configurations.
+    resolutions : list of float, default [0.1, 0.2, 0.3]
+        List of clustering resolutions to analyze
+    pattern : str, default "leiden_"
+        Pattern prefix for clustering resolution columns
+    n_top_deg : int, default 50
+        Number of top differential genes to retain per group
+    min_cells_per_group : int, default 10
+        Minimum number of cells required per group for analysis
+    methods : list, default ["wilcoxon", "t-test_overestim_var", "t-test"]
+        Statistical methods for differential expression analysis
+    results_base_path : str, optional
+        Base path for results output
+    
+    Returns
+    -------
+    dict
+        Dictionary containing analysis summary with:
+        - 'project': Project name
+        - 'total_configs': Number of analysis configurations
+        - 'total_resolutions': Number of resolutions analyzed
+        - 'files_generated': List of output files
+        - 'analysis_summary': Detailed breakdown by configuration
+    
+    Examples
+    --------
+    Basic usage with default configurations:
+    
+    >>> import scanpy as sc
+    >>> import scanpytools as sctl
+    >>> adata = sc.datasets.pbmc3k()
+    >>> # Assume clustering and metadata are already added
+    >>> results = sctl.stat.perform_celltype_specific_deg_across_resolutions(
+    ...     adata,
+    ...     project_name="PBMC_DEG",
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Custom analysis configurations:
+    
+    >>> analysis_configs = [
+    ...     # No filtering - analyze all samples
+    ...     {"group_var": "treatment", "filter_var": None, "filter_value": None},
+    ...     {"group_var": "condition", "filter_var": None, "filter_value": None},
+    ...     # With filtering - analyze treatment within specific subgroups
+    ...     {"group_var": "treatment", "filter_var": "cell_type", "filter_value": "T_cell"},
+    ...     {"group_var": "condition", "filter_var": "timepoint", "filter_value": "day7"},
+    ... ]
+    >>> results = sctl.stat.perform_celltype_specific_deg_across_resolutions(
+    ...     adata,
+    ...     project_name="Custom_DEG",
+    ...     analysis_configs=analysis_configs,
+    ...     resolutions=[0.2, 0.4, 0.6],
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Focus on specific resolution range:
+    
+    >>> results = sctl.stat.perform_celltype_specific_deg_across_resolutions(
+    ...     adata,
+    ...     project_name="High_res_DEG",
+    ...     resolutions=[0.5, 0.7, 0.9, 1.1],
+    ...     n_top_deg=100,  # More genes per group
+    ...     min_cells_per_group=5,  # Allow smaller groups
+    ...     results_base_path="/path/to/results"
+    ... )
+    
+    Notes
+    -----
+    - Requires clustering columns matching the pattern (e.g., 'leiden_0.1', 'leiden_0.2')
+    - Each cluster within each resolution is analyzed separately for cell type-specific responses
+    - Results are organized hierarchically: analysis_config/resolution/cluster
+    - Skips configurations with insufficient group representation
+    - Automatically performs highly variable gene selection per cluster
+    """
+    import numpy as np
+    import pandas as pd
+    import scanpy as sc
+    import scanpytools as sctl
+    import os
+    import shutil
+    from datetime import datetime
+    
+    # Default analysis configurations if not provided
+    if analysis_configs is None:
+        analysis_configs = [
+            {"group_var": "treatment", "filter_var": None, "filter_value": None},
+            {"group_var": "condition", "filter_var": None, "filter_value": None},
+        ]
+    
+    # Setup logging
+    log_file_path = os.path.join(results_base_path, f"celltype_deg_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    
+    def log_print(message):
+        """Print to console and write to log file"""
+        print(message)
+        with open(log_file_path, "a", encoding="utf-8") as log_file:
+            log_file.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
+    
+    # Create results directory if it doesn't exist
+    os.makedirs(results_base_path, exist_ok=True)
+    
+    # Initialize log file
+    log_print(f"=== Starting Cell Type-Specific DEG Analysis Across Resolutions ===")
+    log_print(f"Project: {project_name}")
+    log_print(f"Number of configurations: {len(analysis_configs)}")
+    log_print(f"Resolutions: {resolutions}")
+    log_print(f"Pattern: {pattern}")
+    log_print(f"Top DEGs per group: {n_top_deg}")
+    log_print(f"Min cells per group: {min_cells_per_group}")
+    log_print(f"Methods: {methods}")
+    log_print(f"Results path: {results_base_path}")
+    log_print(f"Log file: {log_file_path}")
+    
+    # Clean existing results (except the log file we just created)
+    if os.path.exists(results_base_path):
+        for item in os.listdir(results_base_path):
+            item_path = os.path.join(results_base_path, item)
+            if item_path != log_file_path:  # Don't delete the log file
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
+        log_print(f"Cleaned existing results directory (preserved log file)")
+    else:
+        log_print(f"Created new results directory: {results_base_path}")
+    
+    # Initialize results summary
+    results_summary = {
+        'project': project_name,
+        'total_configs': len(analysis_configs),
+        'total_resolutions': len(resolutions),
+        'files_generated': [log_file_path],
+        'analysis_summary': {}
+    }
+    
+    # Loop over analysis configurations
+    for config_idx, analysis_config in enumerate(analysis_configs):
+        group_var = analysis_config["group_var"]
+        filter_var = analysis_config.get("filter_var")
+        filter_value = analysis_config.get("filter_value")
+        
+        # Create descriptive name for this analysis
+        if filter_var is None:
+            analysis_name = f"group_{group_var}"
+            filter_description = "all samples"
+        else:
+            analysis_name = f"group_{group_var}_{filter_var}{filter_value}"
+            filter_description = f"{filter_var}={filter_value} samples only"
+        
+        log_print(f"\n=== Configuration {config_idx + 1}/{len(analysis_configs)}: Analyzing {group_var} in {filter_description} ===")
+        
+        # Apply filtering if specified
+        if filter_var is not None:
+            adata_filtered = adata[adata.obs[filter_var] == filter_value, :].copy()
+            log_print(f"Filtered from {adata.n_obs} to {adata_filtered.n_obs} cells based on {filter_var}={filter_value}")
+            
+            # Check if we have enough samples for the main grouping variable after filtering
+            group_counts_after_filter = adata_filtered.obs[group_var].value_counts()
+            log_print(f"Group counts after filtering: {group_counts_after_filter.to_dict()}")
+            
+            if len(group_counts_after_filter) < 2:
+                log_print(f"Skipping this configuration - only {len(group_counts_after_filter)} group(s) available after filtering")
+                continue
+            
+            if any(group_counts_after_filter < 50):
+                log_print(f"Warning: Some groups have fewer than 50 cells after filtering: {group_counts_after_filter.to_dict()}")
+        else:
+            adata_filtered = adata.copy()
+            log_print(f"Using all {adata_filtered.n_obs} cells (no filtering applied)")
+        
+        # Create directory for this analysis configuration
+        group_results_dir = os.path.join(results_base_path, analysis_name)
+        os.makedirs(group_results_dir, exist_ok=True)
+        
+        # Initialize config summary
+        config_summary = {
+            'group_var': group_var,
+            'filter_var': filter_var,
+            'filter_value': filter_value,
+            'total_cells': len(adata_filtered),
+            'resolutions_processed': [],
+            'files_generated': []
+        }
+        
+        # Loop over resolutions
+        for resolution in resolutions:
+            log_print(f"  Processing resolution {resolution}")
+            
+            # Create directory for results at this resolution
+            deg_results_resolution_dir = os.path.join(group_results_dir, f"res_{resolution}")
+            os.makedirs(deg_results_resolution_dir, exist_ok=True)
+            
+            resolution_column = f"{pattern}{resolution}"
+            
+            if resolution_column not in adata_filtered.obs.columns:
+                log_print(f"    Warning: Resolution column '{resolution_column}' not found, skipping...")
+                continue
+                
+            log_print(f"    Analyzing resolution: {resolution_column}, group: {group_var}, filter: {filter_description}")
+            
+            # Print cluster composition
+            log_print("    Composition (%)")
+            composition_pct = sctl.stat.cluster_distribution(adata_filtered, group=group_var, cluster=resolution_column)
+            log_print(str(composition_pct))
+            
+            log_print("    Cell number (N)")
+            composition_n = sctl.stat.cluster_distribution(adata_filtered, group=group_var, cluster=resolution_column, normalize=False)
+            log_print(str(composition_n))
+            
+            # Get clusters for this resolution
+            resolution_clusters = sorted(adata_filtered.obs[resolution_column].unique().tolist())
+            log_print(f"    Clusters at resolution {resolution_column}: {resolution_clusters}")
+            
+            config_summary['resolutions_processed'].append(resolution)
+            
+            # Loop over clusters within this resolution
+            for cluster in resolution_clusters:
+                log_print(f"    Processing cluster {cluster}")
+                adata_cluster = adata_filtered[adata_filtered.obs[resolution_column] == cluster, :].copy()
+                
+                # Check if there are enough cells in different groups for comparison
+                group_counts = adata_cluster.obs[group_var].value_counts()
+                log_print(f"      Group counts in cluster {cluster}: {group_counts.to_dict()}")
+                
+                # Skip if any group has fewer than minimum required cells
+                if any(group_counts < min_cells_per_group):
+                    log_print(f"      Skipping cluster {cluster} - insufficient cells in some groups (min {min_cells_per_group} required)")
+                    continue
+                
+                # Perform highly variable gene selection
+                sc.pp.highly_variable_genes(adata_cluster)
+                
+                # Subset the data to the highly variable genes
+                adata_cluster = adata_cluster[:, adata_cluster.var['highly_variable']].copy()
+                
+                # Identify differential genes
+                DEG_df = sctl.stat.ensemble_identify_cluster_markers(
+                    adata_cluster,
+                    methods=methods,
+                    var_cluster=group_var
+                )
+                
+                # Filter top genes
+                DEG_df = DEG_df[DEG_df["median_rank"] <= n_top_deg]
+                
+                # Add metadata columns
+                DEG_df['group_variable'] = group_var
+                DEG_df['filter_variable'] = filter_var if filter_var is not None else 'none'
+                DEG_df['filter_value'] = filter_value if filter_value is not None else 'none'
+                DEG_df['resolution'] = resolution
+                DEG_df['cluster'] = cluster
+                DEG_df['resolution_column'] = resolution_column
+                DEG_df['analysis_config'] = analysis_name
+                
+                # Save results
+                out_file = os.path.join(deg_results_resolution_dir, f"cluster_{cluster}.csv")
+                DEG_df.to_csv(out_file, index=False)
+                log_print(f"      Saved DEG results to {out_file}")
+                
+                config_summary['files_generated'].append(out_file)
+                results_summary['files_generated'].append(out_file)
+                
+                # Generate condition-specific dotplots for DEG markers
+                try:
+                    # Get the unique conditions/groups being compared
+                    conditions = sorted(adata_cluster.obs[group_var].unique())
+                    log_print(f"      Conditions being compared in cluster {cluster}: {conditions}")
+                    
+                    # Generate dotplot for each condition showing their specific markers
+                    for condition in conditions:
+                        # Get top markers specific to this condition
+                        condition_markers = DEG_df[DEG_df[group_var] == condition]["names"].tolist()
+                        
+                        if condition_markers:
+                            # Order markers by mean expression within this condition
+                            condition_cells = adata_cluster[adata_cluster.obs[group_var] == condition, :].copy()
+                            if condition_cells.n_obs > 0:
+                                # Calculate mean expression for ordering
+                                # mean_expr = pd.Series(
+                                #     condition_cells.X.mean(axis=0).A1 if hasattr(condition_cells.X, 'A1') else condition_cells.X.mean(axis=0),
+                                #     index=condition_cells.var.index
+                                # )
+                                sc.pp.calculate_qc_metrics(condition_cells, inplace=True)
+                                markers_ordered = [gene for gene in condition_cells.var.sort_values("means", ascending=False).index if gene in condition_markers]
+                                
+                                if markers_ordered:
+                                    sc.settings.figdir = deg_results_resolution_dir
+                                    sc.set_figure_params(dpi=300)
+                                    
+                                    sc.pl.dotplot(
+                                        adata_cluster,
+                                        markers_ordered,
+                                        groupby=group_var,
+                                        swap_axes=True,
+                                        title=f"Top markers for {condition} in cluster {cluster} \n (resolution {resolution_column}, {filter_description})",
+                                        save=f"cluster_{cluster}_{condition}_markers_dotplot.png",
+                                        show=False
+                                    )
+                                    
+                                    # Rename dotplot file to ensure consistent naming
+                                    old_name = os.path.join(deg_results_resolution_dir, f"dotplot_cluster_{cluster}_{condition}_markers_dotplot.png")
+                                    new_name = os.path.join(deg_results_resolution_dir, f"cluster_{cluster}_{condition}_markers_dotplot.png")
+                                    if os.path.exists(old_name):
+                                        os.rename(old_name, new_name)
+                                        config_summary['files_generated'].append(new_name)
+                                        results_summary['files_generated'].append(new_name)
+                                        log_print(f"      Generated dotplot for {condition}-specific markers in cluster {cluster}")
+                                    else:
+                                        log_print(f"      Warning: Expected dotplot file not found: {old_name}")
+                                else:
+                                    log_print(f"      No valid markers found for {condition} dotplot in cluster {cluster}")
+                            else:
+                                log_print(f"      No cells found for condition {condition} in cluster {cluster}")
+                        else:
+                            log_print(f"      No {condition}-specific markers available for dotplot in cluster {cluster}")
+                                            
+                except Exception as e:
+                    log_print(f"      Dotplot generation failed for cluster {cluster}: {str(e)}")
+        
+        results_summary['analysis_summary'][analysis_name] = config_summary
+        log_print(f"=== Completed configuration {config_idx + 1}: {analysis_name} ===")
+    
+    log_print(f"\n=== Cell Type-Specific DEG Analysis Complete ===")
+    log_print(f"Project: {project_name}")
+    log_print(f"Configurations processed: {len(results_summary['analysis_summary'])}")
+    log_print(f"Total files generated: {len(results_summary['files_generated'])}")
+    
+    return results_summary
