@@ -181,12 +181,10 @@ def prioritize_genes(
 
     elif platform == "google":
         # Google Gemini API
-        from google import genai
-        client = genai.Client(api_key=api_token)
-        response = client.models.generate_content(
-            model=llm_model,
-            contents=prompt,
-        )
+        import google.generativeai as genai
+        genai.configure(api_key=api_token)
+        model = genai.GenerativeModel(llm_model)
+        response = model.generate_content(prompt)
         full_reason_process = response.text
 
     elif platform == "openai":
