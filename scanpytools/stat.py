@@ -790,6 +790,10 @@ def perform_celltype_specific_deg_across_resolutions(adata, project_name,
             group_counts_after_filter = adata_filtered.obs[group_var].value_counts()
             log_print(f"Group counts after filtering: {group_counts_after_filter.to_dict()}")
             
+            # Print percentage of cells in each group
+            group_pct_after_filter = round(adata_filtered.obs[group_var].value_counts(normalize=True), 2) * 100
+            log_print(f"Group percentages after filtering: {group_pct_after_filter.to_dict()}")
+            
             if len(group_counts_after_filter) < 2:
                 log_print(f"Skipping this configuration - only {len(group_counts_after_filter)} group(s) available after filtering")
                 continue
@@ -853,6 +857,10 @@ def perform_celltype_specific_deg_across_resolutions(adata, project_name,
                 # Check if there are enough cells in different groups for comparison
                 group_counts = adata_cluster.obs[group_var].value_counts()
                 log_print(f"      Group counts in cluster {cluster}: {group_counts.to_dict()}")
+                
+                # Print percentage of cells in each group
+                group_pct = round(adata_cluster.obs[group_var].value_counts(normalize=True), 2) * 100
+                log_print(f"      Group percentages in cluster {cluster}: {group_pct.to_dict()}")
                 
                 # Skip if any group has fewer than minimum required cells
                 if any(group_counts < min_cells_per_group):
